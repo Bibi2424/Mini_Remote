@@ -2,23 +2,23 @@
 
 #include <SPI.h>
 #include <NRFLite.h>
+#include "joystick.h"
 
 #define TRUE 1
 #define FALSE 0
 
-int left_vertical_pin = A0;
-int left_vertical_value = 0;
-bool left_vertical_inversed = TRUE;
-int left_horizontal_pin = A1;
-int left_horizontal_value = 0;
-bool left_horizontal_inversed = FALSE;
-
-int right_vertical_pin = A2;
-int right_vertical_value = 0;
-bool right_vertical_inversed = TRUE;
-int right_horizontal_pin = A3;
-int right_horizontal_value = 0;
-bool right_horizontal_inversed = TRUE;
+joystick_t left_joystick = {
+	.vertical_axis = { .pin = A0, .value = 0, .inverted = TRUE },
+	.horizontal_axis = { .pin = A1, .value = 0, .inverted = FALSE },
+	.output_range = { -100, 100},
+	.dead_space = 10
+};
+joystick_t right_joystick = {
+	.vertical_axis = {.pin = A2, .value = 0, .inverted = TRUE},
+	.horizontal_axis = {.pin = A3, .value = 0, .inverted = TRUE},
+	.output_range = {-100, 100},
+	.dead_space = 10
+};
 
 const static uint8_t RADIO_ID = 1;			   // Our radio's id.
 const static uint8_t DESTINATION_RADIO_ID = 2; // Id of the radio we will transmit to.
@@ -61,67 +61,16 @@ void setup() {
 void loop() {
     _radioDebug.OnTimeMillis = millis();
 
-    left_vertical_value = analogRead(left_vertical_pin);
-    if(left_vertical_inversed) { left_vertical_value = 1024 - left_vertical_value; }
-    left_horizontal_value = analogRead(left_horizontal_pin);
-    if(left_horizontal_inversed) { left_horizontal_value = 1024 - left_horizontal_value; }
+	read_joystick(&left_joystick);
+	read_joystick(&right_joystick);
 
-    right_vertical_value = analogRead(right_vertical_pin);
-    if(right_vertical_inversed) { right_vertical_value = 1024 - right_vertical_value; }
-    right_horizontal_value = analogRead(right_horizontal_pin);
-    if(right_horizontal_inversed) { right_horizontal_value = 1024 - right_horizontal_value; }
+	//! Single joystick mode
+	_radioJoystick.vertical = (int8_t)left_joystick.vertical_axis.value;
+	_radioJoystick.horizontal = (int8_t)left_joystick.horizontal_axis.value;
 
-	// Serial.print("Left V: ");
-	// Serial.print(left_vertical_value);
-	// Serial.print(",H:");
-	// Serial.println(left_horizontal_value);
-
-	// Serial.print("Right V: ");
-	// Serial.print(right_vertical_value);
-	// Serial.print(",H:");
-	// Serial.println(right_horizontal_value);
-
-    left_vertical_value = map(left_vertical_value, 0, 1024, -100, 100);
-    if(left_vertical_value > 0 && left_vertical_value < 10) {
-      left_vertical_value = 0;
-    }
-    else if(left_vertical_value < 0 && left_vertical_value > -10) {
-      left_vertical_value = 0;
-    }
-
-    left_horizontal_value = map(left_horizontal_value, 0, 1024, -100, 100);
-    if(left_horizontal_value > 0 && left_horizontal_value < 10) {
-      left_horizontal_value = 0;
-    }
-    else if(left_horizontal_value < 0 && left_horizontal_value > -10) {
-      left_horizontal_value = 0;
-    }
-
-    right_vertical_value = map(right_vertical_value, 0, 1024, -100, 100);
-    if(right_vertical_value > 0 && right_vertical_value < 10) {
-      right_vertical_value = 0;
-    }
-    else if(right_vertical_value < 0 && right_vertical_value > -10) {
-      right_vertical_value = 0;
-    }
-
-    right_horizontal_value = map(right_horizontal_value, 0, 1024, -100, 100);
-    if(right_horizontal_value > 0 && right_horizontal_value < 10) {
-      right_horizontal_value = 0;
-    }
-    else if(right_horizontal_value < 0 && right_horizontal_value > -10) {
-      right_horizontal_value = 0;
-    }
-    
-    // verticalValue = verticalValue - 512;
-    // float angle = ((float)(horizontalValue-512)/512.0*3.1416);
-    // int sign = (horizontalValue-512)/abs((horizontalValue-512));
-
-    // _radioJoystick.leftWheel = verticalValue + (int)((float)(verticalValue)*sin(angle));
-    // _radioJoystick.rightWheel = verticalValue - (int)((float)(verticalValue)*sin(angle));
-
-	_radioJoystick.vertical = left_vertical_value;
-	_radioJoystick.horizontal = left_horizontal_value;
+	//! Differential mode
+	// _radioJoystick.vertical = (int8_t)((left_joystick.vertical_axis.value + right_joystick.vertical_axis.value) / 2);
+	// _radioJoystick.horizontal = (int8_t)((right_joystick.vertical_axis.value - left_joystick.vertical_axis.value) * 2);
 
 	Serial.print("V: ");
 	Serial.print(_radioJoystick.vertical);
@@ -142,7 +91,7 @@ void loop() {
 	}
 
 	// delay(1000);
-	delay(50);
+	delay(100);
 
 	/*
     By default, 'send' transmits data and waits for an acknowledgement.
