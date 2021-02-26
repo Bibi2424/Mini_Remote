@@ -29,9 +29,9 @@ const static uint8_t PIN_RADIO_CSN = 10;
 
 // For the breakout board, you can use any 2 or 3 pins.
 // These pins will also work for the 1.8" TFT shield.
-#define TFT_CS 6
-#define TFT_RST 7 // Or set to -1 and connect to Arduino RESET pin
-#define TFT_DC 8
+#define TFT_CS 8
+#define TFT_RST 6 // Or set to -1 and connect to Arduino RESET pin
+#define TFT_DC 7
 
 void testdrawtext(char *text, uint16_t color);
 
@@ -57,12 +57,16 @@ Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 
 void setup() {
 
-	pinMode(A0, INPUT_PULLUP); // set pull-up on analog pin 0
-	pinMode(A1, INPUT_PULLUP); // set pull-up on analog pin 0
+	pinMode(A0, INPUT_PULLUP);
+	pinMode(A1, INPUT_PULLUP);
+	pinMode(A2, INPUT_PULLUP);
+	pinMode(A3, INPUT_PULLUP);
 	//! Table for CPINT correspondance: https://github.com/NicoHood/PinChangeInterrupt?utm_source=platformio&utm_medium=piohome
 	PCICR |= _BV(PCIE1);
 	PCMSK1 |= _BV(PCINT8);
 	PCMSK1 |= _BV(PCINT9);
+	PCMSK1 |= _BV(PCINT10);
+	PCMSK1 |= _BV(PCINT11);
 
 	// put your setup code here, to run once:
 	Serial.begin(115200);
@@ -79,6 +83,7 @@ void setup() {
 
 	tft.initR(INITR_GREENTAB); // Init ST7735S chip, green tab
 	Serial.println(F("Initialized"));
+	tft.setRotation(3);
 
 	uint16_t time = millis();
 	tft.fillScreen(ST77XX_BLACK);
@@ -144,14 +149,27 @@ void testdrawtext(char *text, uint16_t color) {
 }
 
 
-//! handle pin change interrupt for A0 to A5 here
+volatile static uint16_t time_pressed = 0;
+//! handle pin change interrupt for A0 to A4 here
 ISR(PCINT1_vect) {
-	//! TODO Debounce
+	if(time_pressed != 0 && (millis() - time_pressed) < 100) { return; }
+	time_pressed = 0;
+	//! TODO edge detection
 	if(digitalRead(A0) == LOW) {
 		Serial.println(" - A0 Press");
+		time_pressed = millis();
 	}
 	else if(digitalRead(A1) == LOW) {
 		Serial.println(" - A1 Press");
+		time_pressed = millis();
+	}
+	if(digitalRead(A2) == LOW) {
+		Serial.println(" - A2 Press");
+		time_pressed = millis();
+	}
+	else if(digitalRead(A3) == LOW) {
+		Serial.println(" - A3 Press");
+		time_pressed = millis();
 	}
 
 	// Serial.println("INT");
