@@ -2,7 +2,7 @@
 #include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
 #include "menu.h"
 
-#include "custom_image.h"
+#include "promo_outline.h"
 
 // For the breakout board, you can use any 2 or 3 pins.
 // These pins will also work for the 1.8" TFT shield.
@@ -43,7 +43,7 @@ static void menu_draw_main_screen(void) {
     tft.setCursor(3, 3);
     tft.print("Promo Remote");
 
-    draw_image_centered(90, 70, image_array, IMAGE_WIDTH, IMAGE_HEIGHT);
+    draw_image_centered(90, 70, promo_outline_array, PROMO_OUTLINE_WIDTH, PROMO_OUTLINE_HEIGHT);
 }
 
 static void draw_image_centered(uint8_t x0, uint8_t y0, const uint8_t *image, uint8_t image_width, uint8_t image_height) {

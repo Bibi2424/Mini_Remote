@@ -4,7 +4,8 @@ from PIL import Image
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--image-file', '-f', required=True, help='path to source img')
-    parser.add_argument('--output-file', '-o', default='custom_image.h', help='path to output file')
+    parser.add_argument('--output-file', '-o', default=None, help='path to output file')
+    parser.add_argument('--image-name', '-n', default='image', help='name to be used for array and define name, and file name if not specified')
     args = parser.parse_args()
 
     im = Image.open(args.image_file).convert('RGB')
@@ -19,13 +20,15 @@ def main():
 
     print(len(buffer))
 
+    if not args.output_file:
+        args.output_file = '{}.h'.format(args.image_name)
     with open(args.output_file, 'w') as f:
-        f.write('#ifndef BUFFER_H\n')
-        f.write('#define BUFFER_H\n\n')
+        f.write('#ifndef {}_H\n'.format(args.image_name.upper()))
+        f.write('#define {}_H\n\n'.format(args.image_name.upper()))
         f.write("#include <avr/pgmspace.h>\n\n")
-        f.write('#define IMAGE_WIDTH   {}\n'.format(im.size[0]))
-        f.write('#define IMAGE_HEIGHT  {}\n\n'.format(im.size[1]))
-        f.write("const uint8_t image_array[80*72] PROGMEM = {\n")
+        f.write('#define {}_WIDTH   {}\n'.format(args.image_name.upper(), im.size[0]))
+        f.write('#define {}_HEIGHT  {}\n\n'.format(args.image_name.upper(), im.size[1]))
+        f.write("const uint8_t {}_array[80*72] PROGMEM = ".format(args.image_name.lower()) + '{\n')
         while buffer:
             size = min(len(buffer), 16)
             line = ', '.join(['0x{:02X}'.format(i) for i in buffer[0:size]]) + ','
