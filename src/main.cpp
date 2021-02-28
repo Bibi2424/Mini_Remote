@@ -2,11 +2,10 @@
 
 #include <SPI.h>
 #include <NRFLite.h>
+#include "global.h"
 #include "joystick.h"
 #include "menu.h"
-
-#define TRUE 1
-#define FALSE 0
+#include "remote_gui.h"
 
 joystick_t left_joystick = {
 	.vertical_axis = { .pin = A4, .value = 0, .inverted = TRUE },
@@ -46,6 +45,10 @@ NRFLite _radio;
 RadioPacketJoystick _radioJoystick;
 RadioPacketDebug _radioDebug;
 
+
+void enter_button(void);
+
+
 void setup() {
 
 	pinMode(A0, INPUT_PULLUP);
@@ -58,6 +61,8 @@ void setup() {
 	PCMSK1 |= _BV(PCINT9);
 	PCMSK1 |= _BV(PCINT10);
 	PCMSK1 |= _BV(PCINT11);
+	pinMode(2, INPUT_PULLUP);
+	attachInterrupt(digitalPinToInterrupt(2), enter_button, FALLING);
 
 	// put your setup code here, to run once:
 	Serial.begin(115200);
@@ -71,10 +76,11 @@ void setup() {
 	}
 
 	// _radioDebug.FromRadioId = RADIO_ID;
-	menu_init();
+	remote_gui_init();
 
 	sei();
 }
+
 
 void loop() {
     _radioDebug.OnTimeMillis = millis();
@@ -109,7 +115,9 @@ void loop() {
 		_radioDebug.FailedTxCount++;
 	}
 
-	delay(100);
+	delay(200);
+
+	menu_draw_gui();
 
 	/*
     By default, 'send' transmits data and waits for an acknowledgement.
@@ -127,21 +135,30 @@ ISR(PCINT1_vect) {
 	time_pressed = 0;
 	//! TODO edge detection
 	if(digitalRead(A0) == LOW) {
-		Serial.println(" - A0 Press");
+		// Serial.println(" - A0 Press");
+		menu_navigate(LEFT);
 		time_pressed = millis();
 	}
 	else if(digitalRead(A1) == LOW) {
-		Serial.println(" - A1 Press");
+		// Serial.println(" - A1 Press");
+		menu_navigate(RIGHT);
 		time_pressed = millis();
 	}
 	if(digitalRead(A2) == LOW) {
-		Serial.println(" - A2 Press");
+		// Serial.println(" - A2 Press");
+		menu_navigate(DOWN);
 		time_pressed = millis();
 	}
 	else if(digitalRead(A3) == LOW) {
-		Serial.println(" - A3 Press");
+		// Serial.println(" - A3 Press");
+		menu_navigate(UP);
 		time_pressed = millis();
 	}
 
 	// Serial.println("INT");
+}
+
+void enter_button(void) {
+		Serial.println(" - ENTER Press");
+	menu_navigate(ENTER);
 }

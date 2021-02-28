@@ -1,6 +1,8 @@
 #ifndef JOYSTICK_H
 #define JOYSTICK_H
 
+#include "global.h"
+
 #include <Arduino.h>
 
 typedef struct {
