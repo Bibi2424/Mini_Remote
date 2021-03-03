@@ -7,6 +7,10 @@
 #include "menu.h"
 #include "remote_gui.h"
 
+
+#define BUTTON_DEBOUNCE_MS 200
+
+
 joystick_t left_joystick = {
 	.vertical_axis = { .pin = A4, .value = 0, .inverted = TRUE },
 	.horizontal_axis = { .pin = A5, .value = 0, .inverted = FALSE },
@@ -127,11 +131,10 @@ void loop() {
     */
 }
 
-
 volatile static uint16_t time_pressed = 0;
 //! handle pin change interrupt for A0 to A4 here
 ISR(PCINT1_vect) {
-	if(time_pressed != 0 && (millis() - time_pressed) < 100) { return; }
+	if(time_pressed != 0 && (millis() - time_pressed) < BUTTON_DEBOUNCE_MS) { return; }
 	time_pressed = 0;
 	//! TODO edge detection
 	if(digitalRead(A0) == LOW) {
@@ -159,6 +162,9 @@ ISR(PCINT1_vect) {
 }
 
 void enter_button(void) {
-		Serial.println(" - ENTER Press");
+	if(time_pressed != 0 && (millis() - time_pressed) < BUTTON_DEBOUNCE_MS) { return; }
+	time_pressed = 0;
+	Serial.println(" - ENTER Press");
 	menu_navigate(ENTER);
+	time_pressed = millis();
 }

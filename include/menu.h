@@ -33,12 +33,19 @@ typedef enum {
 } NAVIGATE_OPTIONS;
 
 typedef enum {
+    NONE,
     SUBMENU,
     UINT,
     LABEL,
     STRING,
     CUSTOM
 } MENU_TYPE;
+
+typedef enum {
+    NO_REDRAW,
+    PARTIAL_REDRAW,
+    FULL_REDRAW,
+} REDRAW_TYPE;
 
 
 typedef struct menu_submenu_t {
@@ -54,13 +61,21 @@ typedef struct menu_uint_t {
 } menu_uint_t;
 
 
+typedef struct menu_string_t {
+    char str[11];
+    void (*on_change)(char*);
+} menu_string_t;
+
+
 typedef struct menu_item_t {
     struct menu_item_t *parent;
     MENU_TYPE type;
-    char label[20];
+    char label[15];
+    REDRAW_TYPE redraw;
     union {
         menu_submenu_t submenu;
         menu_uint_t uint;
+        menu_string_t str;
     };
 } menu_item_t;
 
@@ -68,10 +83,17 @@ typedef struct menu_item_t {
 
 extern void menu_init(void);
 
-extern void item_uint_init(menu_item_t *menu, menu_item_t *parent, char *label, uint16_t value);
-extern void item_label_init(menu_item_t *menu, menu_item_t *parent, char *label);
-extern void item_submenu_init(menu_item_t *menu, menu_item_t *parent, char *label);
+extern void item_label_init(menu_item_t *menu, char *label);
+extern void item_uint_init(menu_item_t *menu, char *label, uint16_t value);
+extern void item_string_init(menu_item_t *menu, char *label, const char *new_string);
+extern void item_submenu_init(menu_item_t *menu, char *label);
 extern uint8_t item_submenu_add_child(menu_item_t *menu, menu_item_t *child);
+
+extern void item_set_label(menu_item_t *menu, const char *label);
+extern uint16_t item_uint_get_value(menu_item_t *menu);
+extern void item_uint_set_value(menu_item_t *menu, const uint16_t value);
+extern uint8_t item_string_get(menu_item_t *menu, char *new_string);
+extern void item_string_set(menu_item_t *menu, const char *new_string);
 
 extern void menu_set(menu_item_t *menu);
 extern void menu_draw_gui(void);
@@ -79,5 +101,7 @@ extern void menu_navigate(NAVIGATE_OPTIONS action);
 
 extern void draw_image_centered(uint8_t x0, uint8_t y0, const uint8_t *image, uint8_t image_width, uint8_t image_height);
 extern void draw_image(uint8_t x0, uint8_t y0, const uint8_t *image, uint8_t image_width, uint8_t image_height);
+
+extern void debug_menu_item(menu_item_t *menu);
 
 #endif
