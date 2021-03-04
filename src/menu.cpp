@@ -173,8 +173,7 @@ extern void menu_redraw(menu_item_t *menu, REDRAW_TYPE type) {
 extern void menu_draw_gui(void) {
     if(current_menu->redraw == NO_REDRAW) { return; }
     menu_item_t *menu = current_menu;
-    // Serial.print("Draw: ");
-    // debug_menu_item(current_menu);
+    // Serial.print("Draw: "); debug_menu_item(current_menu);
 
     if(menu->type == UINT) {
         menu_clear_char(current_ligne, -6, 5);
@@ -240,8 +239,6 @@ extern void menu_draw_gui(void) {
                 child->redraw = NO_REDRAW;
                 menu_clear_char(i+2, -11, 10);
                 menu_set_cursor(i+2, -11);
-                // tft.print(*(uint16_t *)child->uint.value);
-                // tft.print(child->uint.value);
                 char str_temp[10];
                 sprintf(str_temp, "%10u", child->uint.value);
                 tft.print(str_temp);
@@ -250,8 +247,6 @@ extern void menu_draw_gui(void) {
                 child->redraw = NO_REDRAW;
                 menu_clear_char(i+2, -11, 10);
                 menu_set_cursor(i+2, -11);
-                // char str_temp[10];
-                // sprintf(str_temp, "%10s", child->str.str);
                 tft.print(child->str.str);
             }
         }
@@ -336,7 +331,6 @@ extern void menu_navigate(NAVIGATE_OPTIONS action) {
     }
     else if(current_menu->type == SUBMENU) {
         
-        // uint8_t old_selected = current_menu->submenu.selected;
         switch(action) {
             case UP:
                 if(current_menu->submenu.selected > 0) { 
@@ -403,8 +397,6 @@ extern void draw_image_centered(uint8_t x0, uint8_t y0, const uint8_t *image, ui
 
 extern void draw_image(uint8_t x0, uint8_t y0, const uint8_t *image, uint8_t image_width, uint8_t image_height) {
 
-    uint16_t time = millis();
-
     for(uint8_t y = 0; y < image_height; y++) {
         for(uint8_t x = 0; x < image_width; x++) {
             uint8_t color8 = (uint16_t)pgm_read_byte(&image[y * image_width + x]);
@@ -413,10 +405,6 @@ extern void draw_image(uint8_t x0, uint8_t y0, const uint8_t *image, uint8_t ima
             tft.drawPixel(x0 + x, y0 + y, color);
         }
     }
-
-    time = millis() - time;
-    tft.setCursor(3, 15);
-    tft.print(time); tft.print("ms");
 }
 
 

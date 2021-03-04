@@ -130,7 +130,7 @@ void loop() {
 	// Serial.print(_radioDebug.OnTimeMillis);
 	// Serial.print(" ms");
 
-	if (_radio.send(storage.radio_tx_id, &_radioJoystick, sizeof(_radioJoystick))) {
+	if (_radio.send(storage.radio_tx_id, &_radioJoystick, sizeof(_radioJoystick)), NRFLite::REQUIRE_ACK) {
 		// Serial.print("...Success");
 		asm("nop");
 	}
@@ -146,8 +146,8 @@ void loop() {
 	/*
     By default, 'send' transmits data and waits for an acknowledgement.
     You can also send without requesting an acknowledgement.
-    _radio.send(DESTINATION_RADIO_ID, &_radioData, sizeof(_radioData), NRFLite::NO_ACK)
-    _radio.send(DESTINATION_RADIO_ID, &_radioData, sizeof(_radioData), NRFLite::REQUIRE_ACK) // THE DEFAULT
+    _radio.send(storage.radio_tx_id, &_radioData, sizeof(_radioData), NRFLite::NO_ACK)
+    _radio.send(storage.radio_tx_id, &_radioData, sizeof(_radioData), NRFLite::REQUIRE_ACK) // THE DEFAULT
     */
 }
 
@@ -158,33 +158,26 @@ ISR(PCINT1_vect) {
 	time_pressed = 0;
 	//! TODO edge detection
 	if(digitalRead(A0) == LOW) {
-		// Serial.println(" - A0 Press");
 		menu_navigate(LEFT);
 		time_pressed = millis();
 	}
 	else if(digitalRead(A1) == LOW) {
-		// Serial.println(" - A1 Press");
 		menu_navigate(RIGHT);
 		time_pressed = millis();
 	}
 	if(digitalRead(A2) == LOW) {
-		// Serial.println(" - A2 Press");
 		menu_navigate(DOWN);
 		time_pressed = millis();
 	}
 	else if(digitalRead(A3) == LOW) {
-		// Serial.println(" - A3 Press");
 		menu_navigate(UP);
 		time_pressed = millis();
 	}
-
-	// Serial.println("INT");
 }
 
 void enter_button(void) {
 	if(time_pressed != 0 && (millis() - time_pressed) < BUTTON_DEBOUNCE_MS) { return; }
 	time_pressed = 0;
-	// Serial.println(" - ENTER Press");
 	menu_navigate(ENTER);
 	time_pressed = millis();
 }
