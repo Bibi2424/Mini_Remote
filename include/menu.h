@@ -38,6 +38,7 @@ typedef enum {
     UINT,
     LABEL,
     STRING,
+    ACTION,
     CUSTOM
 } MENU_TYPE;
 
@@ -67,6 +68,12 @@ typedef struct menu_string_t {
 } menu_string_t;
 
 
+typedef struct menu_custom_t {
+    void (*draw_call)(Adafruit_ST7735 *screen, menu_item_t *menu);
+    menu_item_t *(*navigate_call)(NAVIGATE_OPTIONS action, menu_item_t *menu);
+} menu_custom_t;
+
+
 typedef struct menu_item_t {
     struct menu_item_t *parent;
     MENU_TYPE type;
@@ -76,6 +83,7 @@ typedef struct menu_item_t {
         menu_submenu_t submenu;
         menu_uint_t uint;
         menu_string_t str;
+        menu_custom_t custom;
     };
 } menu_item_t;
 
@@ -84,16 +92,19 @@ typedef struct menu_item_t {
 extern void menu_init(void);
 
 extern void item_label_init(menu_item_t *menu, char *label);
-extern void item_uint_init(menu_item_t *menu, char *label, uint16_t value);
-extern void item_string_init(menu_item_t *menu, char *label, const char *new_string);
+extern void item_uint_init(menu_item_t *menu, char *label, uint16_t value, void (*on_change)(uint16_t));
+extern void item_string_init(menu_item_t *menu, char *label, const char *new_string, void (*on_change)(char *));
+extern void item_custom_init(menu_item_t *menu, char *label, void (*draw)(Adafruit_ST7735 *, menu_item_t *), menu_item_t *(*navigate)(NAVIGATE_OPTIONS, menu_item_t*));
 extern void item_submenu_init(menu_item_t *menu, char *label);
 extern uint8_t item_submenu_add_child(menu_item_t *menu, menu_item_t *child);
 
 extern void item_set_label(menu_item_t *menu, const char *label);
 extern uint16_t item_uint_get_value(menu_item_t *menu);
 extern void item_uint_set_value(menu_item_t *menu, const uint16_t value);
+extern void item_uint_set_callback(menu_item_t *menu, void (*on_change)(uint16_t));
 extern uint8_t item_string_get(menu_item_t *menu, char *new_string);
 extern void item_string_set(menu_item_t *menu, const char *new_string);
+extern void item_uint_set_callback(menu_item_t *menu, void (*on_change)(char *));
 
 extern void menu_set(menu_item_t *menu);
 extern void menu_draw_gui(void);

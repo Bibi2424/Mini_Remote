@@ -60,23 +60,33 @@ extern void item_label_init(menu_item_t *menu, char* label) {
 }
 
 
-extern void item_uint_init(menu_item_t *menu, char* label, uint16_t value) {
+extern void item_uint_init(menu_item_t *menu, char* label, uint16_t value, void (*on_change)(uint16_t)) {
     item_base_init(menu, UINT, label);
     menu->uint.value = value;
+    menu->uint.on_change = on_change;
 }
 
 
-extern void item_string_init(menu_item_t *menu, char* label, const char *new_string) {
+extern void item_string_init(menu_item_t *menu, char* label, const char *new_string, void (*on_change)(char*)) {
     item_base_init(menu, STRING, label);
     char str_temp[11];
     strncpy(str_temp, new_string, 10);
     str_temp[11] = '\0';
     sprintf(menu->str.str, "%10s", str_temp);
+    menu->str.on_change = on_change;
+}
+
+
+extern void item_custom_init(menu_item_t *menu, char *label, void (*draw)(Adafruit_ST7735 *, menu_item_t *), menu_item_t *(*navigate)(NAVIGATE_OPTIONS, menu_item_t*)) {
+    item_base_init(menu, CUSTOM, label);
+    menu->custom.draw_call = draw;
+    menu->custom.navigate_call = navigate;
 }
 
 
 extern void item_submenu_init(menu_item_t *menu, char* label) {
     item_base_init(menu, SUBMENU, label);
+    menu->submenu.selected = 1;
 }
 
 
@@ -111,6 +121,12 @@ extern void item_uint_set_value(menu_item_t *menu, const uint16_t value) {
 }
 
 
+extern void item_uint_set_callback(menu_item_t *menu, void (*on_change)(uint16_t)) {
+    if(menu->type != UINT) { return; }
+    menu->uint.on_change = on_change;
+}
+
+
 extern uint8_t item_string_get(menu_item_t *menu, char *new_string) {
     if(menu->type != STRING) { return 0; }
     char *p_str = menu->str.str;
@@ -131,6 +147,12 @@ extern void item_string_set(menu_item_t *menu, const char *new_string) {
 }
 
 
+extern void item_uint_set_callback(menu_item_t *menu, void (*on_change)(char*)) {
+    if(menu->type != STRING) { return; }
+    menu->str.on_change = on_change;
+}
+
+
 //! -- DRAW/NAVIGATE Functions -------------------------
 static menu_item_t* current_menu = NULL;
 static uint8_t current_ligne = 0;
@@ -143,11 +165,16 @@ extern void menu_set(menu_item_t *menu) {
 }
 
 
+extern void menu_redraw(menu_item_t *menu, REDRAW_TYPE type) {
+    current_menu->redraw = type;
+}
+
+
 extern void menu_draw_gui(void) {
     if(current_menu->redraw == NO_REDRAW) { return; }
     menu_item_t *menu = current_menu;
-    Serial.print("Draw: ");
-    debug_menu_item(current_menu);
+    // Serial.print("Draw: ");
+    // debug_menu_item(current_menu);
 
     if(menu->type == UINT) {
         menu_clear_char(current_ligne, -6, 5);
@@ -230,23 +257,33 @@ extern void menu_draw_gui(void) {
         }
         menu->redraw = NO_REDRAW;
     }
+    else if(menu->type == CUSTOM) {
+        if(menu->redraw == FULL_REDRAW) {
+            tft.fillScreen(BLACK);
+            menu_set_cursor(0, 0);
+            tft.print(menu->label);
+            menu_draw_rect(0, CYAN);
+        }
+        menu->custom.draw_call(&tft, menu);
+        menu->redraw = NO_REDRAW;
+    }
 }
 
 
 extern void menu_navigate(NAVIGATE_OPTIONS action) {
-    Serial.print(current_menu->label); Serial.print(" - ");
+    // Serial.print(current_menu->label); Serial.print(" - ");
     if(current_menu->type == UINT) {
 
         switch(action) {
             case UP: {
                 uint16_t increment = integer_pow(10, 9 - edition_column);
-                if(current_menu->uint.value + increment  > increment) { current_menu->uint.value += increment; }
+                if(current_menu->uint.value + increment >= current_menu->uint.value) { current_menu->uint.value += increment; }
                 current_menu->redraw = PARTIAL_REDRAW;
                 break;
             }
             case DOWN: {
                 uint16_t increment = integer_pow(10, 9 - edition_column);
-                if(current_menu->uint.value - increment  < increment) { current_menu->uint.value -= increment; }
+                if(current_menu->uint.value - increment <= current_menu->uint.value) { current_menu->uint.value -= increment; }
                 current_menu->redraw = PARTIAL_REDRAW;
                 break;
             }
@@ -257,11 +294,11 @@ extern void menu_navigate(NAVIGATE_OPTIONS action) {
                 if(edition_column < 10 - 1) { edition_column++; current_menu->redraw = PARTIAL_REDRAW; }
                 break;
             case ENTER:
-            if(current_menu->uint.on_change) { current_menu->uint.on_change(current_menu->uint.value); }
+                if(current_menu->uint.on_change) { current_menu->uint.on_change(current_menu->uint.value); }
                 if(current_menu->parent != NULL) {
                     current_menu->redraw = FULL_REDRAW;
                     current_menu = current_menu->parent;
-                    current_menu->redraw = FULL_REDRAW;
+                    current_menu->redraw = PARTIAL_REDRAW;
                 }
                 break;
             default:
@@ -286,9 +323,9 @@ extern void menu_navigate(NAVIGATE_OPTIONS action) {
                 if(edition_column < 10 - 1) { edition_column++; current_menu->redraw = PARTIAL_REDRAW; }
                 break;
             case ENTER:
+                if(current_menu->str.on_change) { current_menu->str.on_change(current_menu->str.str); }
                 if(current_menu->parent != NULL) {
                     current_menu->redraw = FULL_REDRAW;
-                    if(current_menu->str.on_change) { current_menu->str.on_change(current_menu->str.str); }
                     current_menu = current_menu->parent;
                     current_menu->redraw = FULL_REDRAW;
                 }
@@ -321,7 +358,6 @@ extern void menu_navigate(NAVIGATE_OPTIONS action) {
                 break;
             case RIGHT:
             case ENTER: {
-            
                 if(current_menu->submenu.selected == 0) {
                     if(current_menu->parent != NULL) {
                         current_menu = current_menu->parent;
@@ -340,14 +376,21 @@ extern void menu_navigate(NAVIGATE_OPTIONS action) {
                     current_menu = submenu;
                     current_menu->redraw = FULL_REDRAW;
                 }
+                else if(submenu->type == CUSTOM) {
+                    current_menu = submenu;
+                    current_menu->redraw = FULL_REDRAW;
+                }
                 break;
                 }
             default:
                 break;
         }
     }
+    else if(current_menu->type == CUSTOM) {
+        current_menu = current_menu->custom.navigate_call(action, current_menu);
+    }
 
-    Serial.println(current_menu->label);
+    // Serial.println(current_menu->label);
 }
 
 

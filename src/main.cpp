@@ -6,6 +6,7 @@
 #include "joystick.h"
 #include "menu.h"
 #include "remote_gui.h"
+#include "storage.h"
 
 
 #define BUTTON_DEBOUNCE_MS 200
@@ -24,8 +25,8 @@ joystick_t right_joystick = {
 	.dead_space = 10
 };
 
-const static uint8_t RADIO_ID = 1;			   // Our radio's id.
-const static uint8_t DESTINATION_RADIO_ID = 2; // Id of the radio we will transmit to.
+// const static uint8_t RADIO_ID = 1;			   // Our radio's id.
+// const static uint8_t DESTINATION_RADIO_ID = 2; // Id of the radio we will transmit to.
 const static uint8_t PIN_RADIO_CE = 9;
 const static uint8_t PIN_RADIO_CSN = 10;
 
@@ -49,11 +50,20 @@ NRFLite _radio;
 RadioPacketJoystick _radioJoystick;
 RadioPacketDebug _radioDebug;
 
+user_storage_t storage = {
+	.radio_rx_id = 1,
+	.radio_tx_id = 3,
+};
+
 
 void enter_button(void);
+void nrf_interrupt(void);
+void nrf_new_radio_rx_id(uint16_t rx_id);
+void nrf_new_radio_tx_id(uint16_t tx_id);
 
 
 void setup() {
+	cli();
 
 	pinMode(A0, INPUT_PULLUP);
 	pinMode(A1, INPUT_PULLUP);
@@ -68,10 +78,18 @@ void setup() {
 	pinMode(2, INPUT_PULLUP);
 	attachInterrupt(digitalPinToInterrupt(2), enter_button, FALLING);
 
+	attachInterrupt(digitalPinToInterrupt(3), nrf_interrupt, FALLING);
+
 	// put your setup code here, to run once:
 	Serial.begin(115200);
-        
-    if (!_radio.init(RADIO_ID, PIN_RADIO_CE, PIN_RADIO_CSN)) {
+
+	storage_init(&storage);
+	Serial.print("STORE: ");
+	Serial.print(storage.radio_rx_id);
+	Serial.print(" / ");
+	Serial.println(storage.radio_tx_id);
+
+	if (!_radio.init(storage.radio_rx_id, PIN_RADIO_CE, PIN_RADIO_CSN)) {
         Serial.println("Cannot communicate with radio");
         while (1); // Wait here forever.
 	}
@@ -80,7 +98,9 @@ void setup() {
 	}
 
 	// _radioDebug.FromRadioId = RADIO_ID;
-	remote_gui_init();
+	remote_gui_init(&storage);
+	item_uint_set_callback(&menus[RADIO_RX_ID], nrf_new_radio_rx_id);
+	item_uint_set_callback(&menus[RADIO_TX_ID], nrf_new_radio_tx_id);
 
 	sei();
 }
@@ -110,7 +130,7 @@ void loop() {
 	// Serial.print(_radioDebug.OnTimeMillis);
 	// Serial.print(" ms");
 
-	if (_radio.send(DESTINATION_RADIO_ID, &_radioJoystick, sizeof(_radioJoystick))) {
+	if (_radio.send(storage.radio_tx_id, &_radioJoystick, sizeof(_radioJoystick))) {
 		// Serial.print("...Success");
 		asm("nop");
 	}
@@ -164,7 +184,25 @@ ISR(PCINT1_vect) {
 void enter_button(void) {
 	if(time_pressed != 0 && (millis() - time_pressed) < BUTTON_DEBOUNCE_MS) { return; }
 	time_pressed = 0;
-	Serial.println(" - ENTER Press");
+	// Serial.println(" - ENTER Press");
 	menu_navigate(ENTER);
 	time_pressed = millis();
+}
+
+void nrf_interrupt(void) {
+	Serial.println("RNF Interrupt");
+}
+
+void nrf_new_radio_rx_id(uint16_t rx_id) {
+	storage.radio_rx_id = (uint8_t) rx_id;
+	Serial.print("RX ID: "); Serial.println(rx_id);
+	//! TODO: Assign to radio
+	storage_sync(&storage);
+}
+
+void nrf_new_radio_tx_id(uint16_t tx_id) {
+	storage.radio_tx_id = (uint8_t) tx_id;
+	Serial.print("TX ID: "); Serial.println(tx_id);
+	//! TODO: Assign to radio
+	storage_sync(&storage);
 }
