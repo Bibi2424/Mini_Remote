@@ -18,6 +18,9 @@ static uint8_t vleds[VLED_NUMBER] = {0, 0};
 
 
 //! -- STATIC Functions -------------------------
+static inline void menu_vled_redraw(uint8_t led_id);
+static inline void menu_vled_redraw_all(void);
+
 static void menu_set_cursor(int8_t line, int8_t column) {
     if (line < 0) { line = MENU_LINE + line; }
     if (column < 0) { column = MENU_COLUMN + column; }
@@ -181,10 +184,7 @@ extern void menu_draw_header(menu_item_t *menu) {
     tft.print(menu->label);
     menu_draw_rect(0, CYAN);
 
-    tft.fillCircle(135, 6, 4, RED);
-    tft.drawCircle(135, 6, 5, COLOR(128, 128, 128));
-    tft.fillCircle(150, 6, 4, RED);
-    tft.drawCircle(150, 6, 5, COLOR(128, 128, 128));
+    menu_vled_redraw_all();
 }
 
 
@@ -400,16 +400,29 @@ extern void menu_navigate(NAVIGATE_OPTIONS_t action) {
 
 
 //! -- Virtual LED Functions ---------------------------------
+static inline void menu_vled_redraw(uint8_t led_id) {
+    uint16_t color;
+    if(vleds[led_id]) { color = GREEN; }
+    else { color = RED; }
+    tft.fillCircle(135 + led_id * 15, 6, 5, color);
+    tft.drawCircle(135 + led_id * 15, 6, 5, COLOR(128, 128, 128));
+}
+
+
+static inline void menu_vled_redraw_all(void) {
+    uint8_t i;
+    for(i = 0; i < VLED_NUMBER; i++) {
+        menu_vled_redraw(i);
+    }
+}
+
+
 extern void menu_vled_set(uint8_t led_id, bool state) {
     if(led_id >= VLED_NUMBER) { return; }
     if(vleds[led_id] == state) { return; }
     vleds[led_id] = state;
 
-    uint16_t color;
-    if(state) { color = GREEN; }
-    else { color = RED; }
-    tft.fillCircle(135 + led_id * 15, 6, 5, color);
-    tft.drawCircle(135 + led_id * 15, 6, 5, COLOR(128, 128, 128));
+    menu_vled_redraw(led_id);
 }
 
 
