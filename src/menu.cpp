@@ -9,8 +9,12 @@
 #define MENU_LINE   10
 #define MENU_COLUMN 26
 
+#define VLED_NUMBER 2
+
 
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
+
+static uint8_t vleds[VLED_NUMBER] = {0, 0};
 
 
 //! -- STATIC Functions -------------------------
@@ -32,7 +36,7 @@ static void menu_draw_rect(uint8_t line, uint16_t rect_color) {
 }
 
 
-static void item_base_init(menu_item_t *menu, MENU_TYPE type, char* label) {
+static void item_base_init(menu_item_t *menu, MENU_TYPE_t type, char* label) {
     memset(menu, 0, sizeof(menu_item_t));
     menu->redraw = NO_REDRAW;
     menu->type = type;
@@ -44,13 +48,13 @@ static void item_base_init(menu_item_t *menu, MENU_TYPE type, char* label) {
 extern void menu_init(void) {
     //! Size XxY: 160x128
     tft.initR(INITR_GREENTAB); // Init ST7735S chip, green tab
-    Serial.println(F("Initialized"));
+    // Serial.println(F("Initialized"));
     tft.setRotation(3);
 
-    uint16_t time = millis();
+    // uint16_t time = millis();
     tft.fillScreen(BLACK);
-    time = millis() - time;
-    Serial.println(time, DEC);
+    // time = millis() - time;
+    // Serial.println(time, DEC);
     // delay(500);
 }
 
@@ -77,7 +81,7 @@ extern void item_string_init(menu_item_t *menu, char* label, const char *new_str
 }
 
 
-extern void item_custom_init(menu_item_t *menu, char *label, void (*draw)(Adafruit_ST7735 *, menu_item_t *), menu_item_t *(*navigate)(NAVIGATE_OPTIONS, menu_item_t*)) {
+extern void item_custom_init(menu_item_t *menu, char *label, void (*draw)(Adafruit_ST7735 *, menu_item_t *), menu_item_t *(*navigate)(NAVIGATE_OPTIONS_t, menu_item_t*)) {
     item_base_init(menu, CUSTOM, label);
     menu->custom.draw_call = draw;
     menu->custom.navigate_call = navigate;
@@ -95,7 +99,6 @@ extern uint8_t item_submenu_add_child(menu_item_t *menu, menu_item_t *child) {
     if(menu->submenu.number_of_children >= MAX_CHILD) { return FALSE; }
     menu->submenu.children[menu->submenu.number_of_children++] = child;
     child->parent = menu;
-    menu->submenu.selected = 0;
     return TRUE;
 }
 
@@ -170,10 +173,26 @@ extern void menu_redraw(menu_item_t *menu, REDRAW_TYPE type) {
 }
 
 
-extern void menu_draw_gui(void) {
-    if(current_menu->redraw == NO_REDRAW) { return; }
+extern void menu_draw_header(menu_item_t *menu) {
+    if(menu->redraw != FULL_REDRAW) { return; }
+
+    tft.fillScreen(BLACK);
+    menu_set_cursor(0, 0);
+    tft.print(menu->label);
+    menu_draw_rect(0, CYAN);
+
+    tft.fillCircle(135, 6, 4, RED);
+    tft.drawCircle(135, 6, 5, COLOR(128, 128, 128));
+    tft.fillCircle(150, 6, 4, RED);
+    tft.drawCircle(150, 6, 5, COLOR(128, 128, 128));
+}
+
+
+extern bool menu_draw_gui(void) {
+    if(current_menu->redraw == NO_REDRAW) { Serial.print("."); return false; }
+    Serial.print("!");
+
     menu_item_t *menu = current_menu;
-    // Serial.print("Draw: "); debug_menu_item(current_menu);
 
     if(menu->type == UINT) {
         menu_clear_char(current_ligne, -6, 5);
@@ -200,12 +219,7 @@ extern void menu_draw_gui(void) {
         menu->redraw = NO_REDRAW;
     }
     else if(menu->type == SUBMENU) {
-        if(menu->redraw == FULL_REDRAW) {
-            tft.fillScreen(BLACK);
-            menu_set_cursor(0, 0);
-            tft.print(menu->label);
-            menu_draw_rect(0, CYAN);
-        }
+        menu_draw_header(menu);
 
         if(menu->submenu.selected == 0) {
             menu_set_cursor(1, 0);
@@ -235,11 +249,15 @@ extern void menu_draw_gui(void) {
                 menu_set_cursor(i+2, -2);
                 tft.print("->");
             }
+            else if(child->type == CUSTOM && menu->redraw == FULL_REDRAW) {
+                menu_set_cursor(i+2, -1);
+                tft.print(">");
+            }
             else if(child->type == UINT && (child->redraw != NO_REDRAW || menu->redraw == FULL_REDRAW)) {
                 child->redraw = NO_REDRAW;
                 menu_clear_char(i+2, -11, 10);
                 menu_set_cursor(i+2, -11);
-                char str_temp[10];
+                char str_temp[11];
                 sprintf(str_temp, "%10u", child->uint.value);
                 tft.print(str_temp);
             }
@@ -253,42 +271,39 @@ extern void menu_draw_gui(void) {
         menu->redraw = NO_REDRAW;
     }
     else if(menu->type == CUSTOM) {
-        if(menu->redraw == FULL_REDRAW) {
-            tft.fillScreen(BLACK);
-            menu_set_cursor(0, 0);
-            tft.print(menu->label);
-            menu_draw_rect(0, CYAN);
-        }
+        menu_draw_header(menu);
         menu->custom.draw_call(&tft, menu);
         menu->redraw = NO_REDRAW;
     }
+
+    return true;
 }
 
 
-extern void menu_navigate(NAVIGATE_OPTIONS action) {
-    // Serial.print(current_menu->label); Serial.print(" - ");
-    if(current_menu->type == UINT) {
+extern void menu_navigate(NAVIGATE_OPTIONS_t action) {
+    if(NAVIGATE_NONE == action) { return; }
 
+    if(current_menu->type == UINT) {
         switch(action) {
-            case UP: {
+            case NAVIGATE_UP: {
                 uint16_t increment = integer_pow(10, 9 - edition_column);
                 if(current_menu->uint.value + increment >= current_menu->uint.value) { current_menu->uint.value += increment; }
                 current_menu->redraw = PARTIAL_REDRAW;
                 break;
             }
-            case DOWN: {
+            case NAVIGATE_DOWN: {
                 uint16_t increment = integer_pow(10, 9 - edition_column);
                 if(current_menu->uint.value - increment <= current_menu->uint.value) { current_menu->uint.value -= increment; }
                 current_menu->redraw = PARTIAL_REDRAW;
                 break;
             }
-            case LEFT:
+            case NAVIGATE_LEFT:
                 if(edition_column > 5) { edition_column--; current_menu->redraw = PARTIAL_REDRAW; }
                 break;
-            case RIGHT:
+            case NAVIGATE_RIGHT:
                 if(edition_column < 10 - 1) { edition_column++; current_menu->redraw = PARTIAL_REDRAW; }
                 break;
-            case ENTER:
+            case NAVIGATE_ENTER:
                 if(current_menu->uint.on_change) { current_menu->uint.on_change(current_menu->uint.value); }
                 if(current_menu->parent != NULL) {
                     current_menu->redraw = FULL_REDRAW;
@@ -301,23 +316,22 @@ extern void menu_navigate(NAVIGATE_OPTIONS action) {
         }
     }
     else if(current_menu->type == STRING) {
-
         switch(action) {
-            case UP: 
+            case NAVIGATE_UP: 
                 current_menu->str.str[edition_column]++;
                 current_menu->redraw = PARTIAL_REDRAW;
                 break;
-            case DOWN:
+            case NAVIGATE_DOWN:
                 current_menu->str.str[edition_column]--;
                 current_menu->redraw = PARTIAL_REDRAW;
                 break;
-            case LEFT:
+            case NAVIGATE_LEFT:
                 if(edition_column > 0) { edition_column--; current_menu->redraw = PARTIAL_REDRAW; }
                 break;
-            case RIGHT:
+            case NAVIGATE_RIGHT:
                 if(edition_column < 10 - 1) { edition_column++; current_menu->redraw = PARTIAL_REDRAW; }
                 break;
-            case ENTER:
+            case NAVIGATE_ENTER:
                 if(current_menu->str.on_change) { current_menu->str.on_change(current_menu->str.str); }
                 if(current_menu->parent != NULL) {
                     current_menu->redraw = FULL_REDRAW;
@@ -330,28 +344,27 @@ extern void menu_navigate(NAVIGATE_OPTIONS action) {
         }
     }
     else if(current_menu->type == SUBMENU) {
-        
         switch(action) {
-            case UP:
+            case NAVIGATE_UP:
                 if(current_menu->submenu.selected > 0) { 
                     current_menu->submenu.selected--;
                     current_menu->redraw = PARTIAL_REDRAW;
                 }
                 break;
-            case DOWN:
+            case NAVIGATE_DOWN:
                 if(current_menu->submenu.selected < current_menu->submenu.number_of_children) { 
                     current_menu->submenu.selected++;
                     current_menu->redraw = PARTIAL_REDRAW;
                 }
                 break;
-            case LEFT:
+            case NAVIGATE_LEFT:
                 if(current_menu->parent != NULL) { 
                     current_menu = current_menu->parent;
                     current_menu->redraw = FULL_REDRAW;
                 }
                 break;
-            case RIGHT:
-            case ENTER: {
+            case NAVIGATE_RIGHT:
+            case NAVIGATE_ENTER: {
                 if(current_menu->submenu.selected == 0) {
                     if(current_menu->parent != NULL) {
                         current_menu = current_menu->parent;
@@ -383,13 +396,25 @@ extern void menu_navigate(NAVIGATE_OPTIONS action) {
     else if(current_menu->type == CUSTOM) {
         current_menu = current_menu->custom.navigate_call(action, current_menu);
     }
-
-    // Serial.println(current_menu->label);
 }
 
 
-//! -- HELPER Functions ---------------------------------
+//! -- Virtual LED Functions ---------------------------------
+extern void menu_vled_set(uint8_t led_id, bool state) {
+    if(led_id >= VLED_NUMBER) { return; }
+    if(vleds[led_id] == state) { return; }
+    vleds[led_id] = state;
 
+    uint16_t color;
+    if(state) { color = GREEN; }
+    else { color = RED; }
+    tft.fillCircle(135 + led_id * 15, 6, 5, color);
+    tft.drawCircle(135 + led_id * 15, 6, 5, COLOR(128, 128, 128));
+}
+
+
+
+//! -- HELPER Functions ---------------------------------
 extern void draw_image_centered(uint8_t x0, uint8_t y0, const uint8_t *image, uint8_t image_width, uint8_t image_height) {
     draw_image(x0 - image_width / 2, y0 - image_height / 2, image, image_width, image_height);
 }

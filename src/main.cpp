@@ -12,54 +12,49 @@
 #define BUTTON_DEBOUNCE_MS 200
 
 
-joystick_t left_joystick = {
-	.vertical_axis = { .pin = A4, .value = 0, .inverted = TRUE },
-	.horizontal_axis = { .pin = A5, .value = 0, .inverted = FALSE },
+typedef struct {
+    int8_t vertical;
+    int8_t horizontal;
+} RadioPacketJoystick_t;
+
+
+static void enter_button(void);
+static void nrf_interrupt(void);
+static void nrf_new_radio_rx_id(uint16_t rx_id);
+static void nrf_new_radio_tx_id(uint16_t tx_id);
+
+
+const static uint8_t PIN_RADIO_CE = 9;
+const static uint8_t PIN_RADIO_CSN = 10;
+const static uint8_t PIN_RADIO_IRQ = 3;
+
+static joystick_t left_joystick = {
+	.vertical_axis = { .pin = A4, .value = 0, .inverted = true },
+	.horizontal_axis = { .pin = A5, .value = 0, .inverted = false },
 	.output_range = { -100, 100},
 	.dead_space = 10
 };
-joystick_t right_joystick = {
-	.vertical_axis = {.pin = A6, .value = 0, .inverted = TRUE},
-	.horizontal_axis = {.pin = A7, .value = 0, .inverted = TRUE},
+static joystick_t right_joystick = {
+	.vertical_axis = {.pin = A6, .value = 0, .inverted = true},
+	.horizontal_axis = {.pin = A7, .value = 0, .inverted = true},
 	.output_range = {-100, 100},
 	.dead_space = 10
 };
 
-// const static uint8_t RADIO_ID = 1;			   // Our radio's id.
-// const static uint8_t DESTINATION_RADIO_ID = 2; // Id of the radio we will transmit to.
-const static uint8_t PIN_RADIO_CE = 9;
-const static uint8_t PIN_RADIO_CSN = 10;
+static NRFLite _radio;
+static RadioPacketJoystick_t _radioJoystick;
 
-
-
-struct RadioPacketDebug // Any packet up to 32 bytes can be sent.
-{
-    uint8_t FromRadioId;
-    uint32_t OnTimeMillis;
-    uint32_t FailedTxCount;
-};
-
-
-struct RadioPacketJoystick
-{
-    int8_t vertical;
-    int8_t horizontal;
-};
-
-NRFLite _radio;
-RadioPacketJoystick _radioJoystick;
-RadioPacketDebug _radioDebug;
+volatile static uint16_t time_pressed = 0;
+volatile static NAVIGATE_OPTIONS_t next_action = NAVIGATE_NONE;
+static uint32_t _lastSendTime;
+volatile static uint8_t last_tx_status;
+volatile static bool is_sending = false;
+volatile static bool need_redraw = false;
 
 user_storage_t storage = {
 	.radio_rx_id = 1,
-	.radio_tx_id = 3,
+	.radio_tx_id = 2,
 };
-
-
-void enter_button(void);
-void nrf_interrupt(void);
-void nrf_new_radio_rx_id(uint16_t rx_id);
-void nrf_new_radio_tx_id(uint16_t tx_id);
 
 
 void setup() {
@@ -77,16 +72,15 @@ void setup() {
 	PCMSK1 |= _BV(PCINT11);
 	pinMode(2, INPUT_PULLUP);
 	attachInterrupt(digitalPinToInterrupt(2), enter_button, FALLING);
-
-	attachInterrupt(digitalPinToInterrupt(3), nrf_interrupt, FALLING);
+	attachInterrupt(digitalPinToInterrupt(PIN_RADIO_IRQ), nrf_interrupt, FALLING);
 
 	// put your setup code here, to run once:
 	Serial.begin(115200);
 
 	storage_init(&storage);
-	Serial.print("STORE: ");
+	Serial.print("STORED: RX:");
 	Serial.print(storage.radio_rx_id);
-	Serial.print(" / ");
+	Serial.print(" / TX:");
 	Serial.println(storage.radio_tx_id);
 
 	if (!_radio.init(storage.radio_rx_id, PIN_RADIO_CE, PIN_RADIO_CSN)) {
@@ -97,103 +91,121 @@ void setup() {
 		Serial.println("Init Radio OK");
 	}
 
-	// _radioDebug.FromRadioId = RADIO_ID;
 	remote_gui_init(&storage);
 	item_uint_set_callback(&menus[RADIO_RX_ID], nrf_new_radio_rx_id);
 	item_uint_set_callback(&menus[RADIO_TX_ID], nrf_new_radio_tx_id);
+
+	// menu_vled_set(0, TRUE);
 
 	sei();
 }
 
 
 void loop() {
-    _radioDebug.OnTimeMillis = millis();
+	if (millis() - _lastSendTime > 100) {
+		read_joystick(&left_joystick);
+		read_joystick(&right_joystick);
 
-	read_joystick(&left_joystick);
-	read_joystick(&right_joystick);
+		//! Differential mode
+		// _radioJoystick.vertical = (int8_t)((left_joystick.vertical_axis.value + right_joystick.vertical_axis.value) / 2);
+		// _radioJoystick.horizontal = (int8_t)((right_joystick.vertical_axis.value - left_joystick.vertical_axis.value) * 2);
 
-	//! Single joystick mode
-	_radioJoystick.vertical = (int8_t)left_joystick.vertical_axis.value;
-	_radioJoystick.horizontal = (int8_t)left_joystick.horizontal_axis.value;
+		//! Single joystick mode
+		_radioJoystick.vertical = (int8_t)left_joystick.vertical_axis.value;
+		_radioJoystick.horizontal = (int8_t)left_joystick.horizontal_axis.value;
 
-	//! Differential mode
-	// _radioJoystick.vertical = (int8_t)((left_joystick.vertical_axis.value + right_joystick.vertical_axis.value) / 2);
-	// _radioJoystick.horizontal = (int8_t)((right_joystick.vertical_axis.value - left_joystick.vertical_axis.value) * 2);
+		// Serial.print("Sending "); Serial.print(_radioDebug.OnTimeMillis); Serial.print(" ms");
+		// Serial.print(", V: "); Serial.print(_radioJoystick.vertical); Serial.print(",H:"); Serial.print(_radioJoystick.horizontal);
+		// Serial.print(", to:"); Serial.print(storage.radio_tx_id);
 
-	// Serial.print("V: ");
-	// Serial.print(_radioJoystick.vertical);
-	// Serial.print(",H:");
-	// Serial.println(_radioJoystick.horizontal);
-	//Serial.print();
-
-	// Serial.print("Sending ");
-	// Serial.print(_radioDebug.OnTimeMillis);
-	// Serial.print(" ms");
-
-	if (_radio.send(storage.radio_tx_id, &_radioJoystick, sizeof(_radioJoystick)), NRFLite::REQUIRE_ACK) {
-		// Serial.print("...Success");
-		asm("nop");
-	}
-	else {
-		// Serial.print("...Failed");
-		_radioDebug.FailedTxCount++;
+		_lastSendTime = millis();
+		is_sending = true;
+		_radio.startSend(storage.radio_tx_id, &_radioJoystick, sizeof(_radioJoystick));
 	}
 
-	delay(200);
+	if(last_tx_status == 1) {
+		last_tx_status = 0;
+		menu_vled_set(1, true);
+		Serial.println("-Success");
+	}
+	else if(last_tx_status == 2) {
+		last_tx_status = 0;
+		menu_vled_set(1, false);
+		Serial.println("-Failed");
+	}
 
-	menu_draw_gui();
+	if(next_action != NAVIGATE_NONE) {
+		menu_navigate(next_action);
+		Serial.print("NAV:"); Serial.println(next_action);
+		next_action = NAVIGATE_NONE;
+	}
 
-	/*
-    By default, 'send' transmits data and waits for an acknowledgement.
-    You can also send without requesting an acknowledgement.
-    _radio.send(storage.radio_tx_id, &_radioData, sizeof(_radioData), NRFLite::NO_ACK)
-    _radio.send(storage.radio_tx_id, &_radioData, sizeof(_radioData), NRFLite::REQUIRE_ACK) // THE DEFAULT
-    */
+	if ((need_redraw == true) && (is_sending == false)) {
+		Serial.print("#");
+		need_redraw = false;
+		menu_draw_gui();
+	}
+
+	// delay(10);
 }
 
-volatile static uint16_t time_pressed = 0;
 //! handle pin change interrupt for A0 to A4 here
 ISR(PCINT1_vect) {
 	if(time_pressed != 0 && (millis() - time_pressed) < BUTTON_DEBOUNCE_MS) { return; }
 	time_pressed = 0;
 	//! TODO edge detection
 	if(digitalRead(A0) == LOW) {
-		menu_navigate(LEFT);
+		next_action = NAVIGATE_LEFT;
 		time_pressed = millis();
+		need_redraw = true;
 	}
 	else if(digitalRead(A1) == LOW) {
-		menu_navigate(RIGHT);
+		next_action = NAVIGATE_RIGHT;
 		time_pressed = millis();
+		need_redraw = true;
 	}
 	if(digitalRead(A2) == LOW) {
-		menu_navigate(DOWN);
+		next_action = NAVIGATE_DOWN;
 		time_pressed = millis();
+		need_redraw = true;
 	}
 	else if(digitalRead(A3) == LOW) {
-		menu_navigate(UP);
+		next_action = NAVIGATE_UP;
 		time_pressed = millis();
+		need_redraw = true;
 	}
 }
 
-void enter_button(void) {
+
+static void enter_button(void) {
 	if(time_pressed != 0 && (millis() - time_pressed) < BUTTON_DEBOUNCE_MS) { return; }
 	time_pressed = 0;
-	menu_navigate(ENTER);
+	next_action = NAVIGATE_ENTER;
 	time_pressed = millis();
+	need_redraw = true;
 }
 
-void nrf_interrupt(void) {
-	Serial.println("RNF Interrupt");
+
+static void nrf_interrupt(void) {
+	// Serial.println("NRF Interrupt");
+	uint8_t txOk, txFail, rxReady;
+	_radio.whatHappened(txOk, txFail, rxReady);
+	if (txOk) { last_tx_status = 1; }
+	else if (txFail) { last_tx_status = 2; }
+	else { last_tx_status = 0; }
+	is_sending = false;
 }
 
-void nrf_new_radio_rx_id(uint16_t rx_id) {
+
+static void nrf_new_radio_rx_id(uint16_t rx_id) {
 	storage.radio_rx_id = (uint8_t) rx_id;
 	Serial.print("RX ID: "); Serial.println(rx_id);
 	//! TODO: Assign to radio
 	storage_sync(&storage);
 }
 
-void nrf_new_radio_tx_id(uint16_t tx_id) {
+
+static void nrf_new_radio_tx_id(uint16_t tx_id) {
 	storage.radio_tx_id = (uint8_t) tx_id;
 	Serial.print("TX ID: "); Serial.println(tx_id);
 	//! TODO: Assign to radio

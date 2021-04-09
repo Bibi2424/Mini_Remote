@@ -2,6 +2,7 @@
 #define GLOBAL_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define TRUE 1
 #define FALSE 0

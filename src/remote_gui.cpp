@@ -2,7 +2,7 @@
 #include "promo_outline.h"
 
 static void menu_promo_image_draw(Adafruit_ST7735 *screen, menu_item_t *menu);
-static menu_item_t* menu_promo_image_navigate(NAVIGATE_OPTIONS action, menu_item_t *menu);
+static menu_item_t* menu_promo_image_navigate(NAVIGATE_OPTIONS_t action, menu_item_t *menu);
 
 menu_item_t root_menu;
 menu_item_t menus[10];
@@ -103,17 +103,17 @@ static void menu_promo_image_draw(Adafruit_ST7735 *screen, menu_item_t *menu) {
     tft.print("ms");
 }
 
-static menu_item_t* menu_promo_image_navigate(NAVIGATE_OPTIONS action, menu_item_t *menu) {
+static menu_item_t* menu_promo_image_navigate(NAVIGATE_OPTIONS_t action, menu_item_t *menu) {
     switch(action) {
-        case UP:
+        case NAVIGATE_UP:
             // break;
-        case DOWN:
+        case NAVIGATE_DOWN:
             // break;
-        case LEFT:
+        case NAVIGATE_LEFT:
             // break;
-        case RIGHT:
+        case NAVIGATE_RIGHT:
             break;
-        case ENTER:
+        case NAVIGATE_ENTER:
             if(menu->parent != NULL) {
                 menu = menu->parent;
                 menu->redraw = FULL_REDRAW;
