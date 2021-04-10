@@ -47,7 +47,7 @@ static RadioPacketJoystick_t _radioJoystick;
 volatile static uint16_t time_pressed = 0;
 volatile static NAVIGATE_OPTIONS_t next_action = NAVIGATE_NONE;
 static uint32_t _lastSendTime;
-volatile static uint8_t last_tx_status;
+volatile static uint8_t last_radio_status;
 volatile static bool is_sending = false;
 volatile static bool need_redraw = false;
 
@@ -101,8 +101,10 @@ void setup() {
 }
 
 
+uint32_t last_rx_packet;
 void loop() {
-	if (millis() - _lastSendTime > 100) {
+	uint32_t now = millis();
+	if (now - _lastSendTime > 500) {
 		read_joystick(&left_joystick);
 		read_joystick(&right_joystick);
 
@@ -123,15 +125,29 @@ void loop() {
 		_radio.startSend(storage.radio_tx_id, &_radioJoystick, sizeof(_radioJoystick));
 	}
 
-	if(last_tx_status == 1) {
-		last_tx_status = 0;
+	if(last_radio_status & (1 << 0)) {
+		last_radio_status &= ~(1 << 0);
 		menu_vled_set(1, true);
-		Serial.println("-Success");
+		Serial.print("#");
 	}
-	else if(last_tx_status == 2) {
-		last_tx_status = 0;
+	if(last_radio_status & (1 << 1)) {
+		last_radio_status &= ~(1 << 1);
 		menu_vled_set(1, false);
-		Serial.println("-Failed");
+		Serial.print("!");
+	}
+	if(last_radio_status & (1 << 2)) {
+		last_radio_status &= ~(1 << 2);
+		last_rx_packet = millis();
+		menu_vled_set(0, true);
+		Serial.print("Received: ");
+		while (_radio.hasDataISR()) {
+			uint8_t data;
+			_radio.readData(&data);
+			Serial.println(data);
+		}
+	}
+	if((now - last_rx_packet) > 500) {
+		menu_vled_set(0, false);
 	}
 
 	if(next_action != NAVIGATE_NONE) {
@@ -190,9 +206,9 @@ static void nrf_interrupt(void) {
 	// Serial.println("NRF Interrupt");
 	uint8_t txOk, txFail, rxReady;
 	_radio.whatHappened(txOk, txFail, rxReady);
-	if (txOk) { last_tx_status = 1; }
-	else if (txFail) { last_tx_status = 2; }
-	else { last_tx_status = 0; }
+	if (txOk) { last_radio_status |= (1 << 0); }
+	if (txFail) { last_radio_status |= (1 << 1); }
+	if (rxReady) { last_radio_status |= (1 << 2); }
 	is_sending = false;
 }
 
