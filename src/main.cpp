@@ -11,6 +11,10 @@
 
 #define BUTTON_DEBOUNCE_MS 200
 
+#define RADIO_STATUS_TX_OK		0
+#define RADIO_STATUS_TX_FAIL	1
+#define RADIO_STATUS_RX_READY	2
+
 
 typedef struct {
     int8_t vertical;
@@ -125,18 +129,18 @@ void loop() {
 		_radio.startSend(storage.radio_tx_id, &_radioJoystick, sizeof(_radioJoystick));
 	}
 
-	if(last_radio_status & (1 << 0)) {
-		last_radio_status &= ~(1 << 0);
+	if(bitRead(last_radio_status, RADIO_STATUS_TX_OK)) {
+		bitClear(last_radio_status, RADIO_STATUS_TX_OK);
 		menu_vled_set(1, true);
 		Serial.print("#");
 	}
-	if(last_radio_status & (1 << 1)) {
-		last_radio_status &= ~(1 << 1);
+	if(bitRead(last_radio_status, RADIO_STATUS_TX_FAIL)) {
+		bitClear(last_radio_status, RADIO_STATUS_TX_FAIL);
 		menu_vled_set(1, false);
 		Serial.print("!");
 	}
-	if(last_radio_status & (1 << 2)) {
-		last_radio_status &= ~(1 << 2);
+	if(bitRead(last_radio_status, RADIO_STATUS_RX_READY)) {
+		bitClear(last_radio_status, RADIO_STATUS_RX_READY);
 		last_rx_packet = millis();
 		menu_vled_set(0, true);
 		Serial.print("Received: ");
@@ -206,9 +210,9 @@ static void nrf_interrupt(void) {
 	// Serial.println("NRF Interrupt");
 	uint8_t txOk, txFail, rxReady;
 	_radio.whatHappened(txOk, txFail, rxReady);
-	if (txOk) { last_radio_status |= (1 << 0); }
-	if (txFail) { last_radio_status |= (1 << 1); }
-	if (rxReady) { last_radio_status |= (1 << 2); }
+	if (txOk) { bitSet(last_radio_status, RADIO_STATUS_TX_OK); }
+	if (txFail) { bitSet(last_radio_status, RADIO_STATUS_TX_FAIL); }
+	if (rxReady) { bitSet(last_radio_status, RADIO_STATUS_RX_READY); }
 	is_sending = false;
 }
 
