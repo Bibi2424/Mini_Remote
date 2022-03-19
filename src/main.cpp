@@ -26,6 +26,7 @@ static void enter_button(void);
 static void nrf_interrupt(void);
 static void nrf_new_radio_rx_id(uint16_t rx_id);
 static void nrf_new_radio_tx_id(uint16_t tx_id);
+static void sync_remote_enable(uint16_t enable);
 
 
 const static uint8_t PIN_RADIO_CE = 9;
@@ -58,6 +59,7 @@ volatile static bool need_redraw = false;
 user_storage_t storage = {
 	.radio_rx_id = 1,
 	.radio_tx_id = 2,
+	.radio_enable = 1,
 };
 
 
@@ -98,6 +100,7 @@ void setup() {
 	remote_gui_init(&storage);
 	item_uint_set_callback(&menus[RADIO_RX_ID], nrf_new_radio_rx_id);
 	item_uint_set_callback(&menus[RADIO_TX_ID], nrf_new_radio_tx_id);
+	item_uint_set_callback(&menus[MENU_REMOTE_ON], sync_remote_enable);
 
 	// menu_vled_set(0, TRUE);
 
@@ -108,7 +111,8 @@ void setup() {
 uint32_t last_rx_packet;
 void loop() {
 	uint32_t now = millis();
-	if (now - _lastSendTime > 500) {
+
+	if (now - _lastSendTime > 20 && storage.radio_enable) {
 		read_joystick(&left_joystick);
 		read_joystick(&right_joystick);
 
@@ -131,18 +135,18 @@ void loop() {
 
 	if(bitRead(last_radio_status, RADIO_STATUS_TX_OK)) {
 		bitClear(last_radio_status, RADIO_STATUS_TX_OK);
-		menu_vled_set(1, true);
+		menu_vled_set(VLED_NRF_TX, true);
 		Serial.print("#");
 	}
 	if(bitRead(last_radio_status, RADIO_STATUS_TX_FAIL)) {
 		bitClear(last_radio_status, RADIO_STATUS_TX_FAIL);
-		menu_vled_set(1, false);
+		menu_vled_set(VLED_NRF_TX, false);
 		Serial.print("!");
 	}
 	if(bitRead(last_radio_status, RADIO_STATUS_RX_READY)) {
 		bitClear(last_radio_status, RADIO_STATUS_RX_READY);
 		last_rx_packet = millis();
-		menu_vled_set(0, true);
+		menu_vled_set(VLED_NRF_RX, true);
 		Serial.print("Received: ");
 		while (_radio.hasDataISR()) {
 			uint8_t data;
@@ -151,7 +155,7 @@ void loop() {
 		}
 	}
 	if((now - last_rx_packet) > 500) {
-		menu_vled_set(0, false);
+		menu_vled_set(VLED_NRF_RX, false);
 	}
 
 	if(next_action != NAVIGATE_NONE) {
@@ -229,5 +233,13 @@ static void nrf_new_radio_tx_id(uint16_t tx_id) {
 	storage.radio_tx_id = (uint8_t) tx_id;
 	Serial.print("TX ID: "); Serial.println(tx_id);
 	//! TODO: Assign to radio
+	storage_sync(&storage);
+}
+
+
+static void sync_remote_enable(uint16_t enable) {
+	storage.radio_enable = enable;
+	if(enable == false) { menu_vled_set(VLED_NRF_TX, false); }
+	Serial.print("Remote enable: "); Serial.println(enable);
 	storage_sync(&storage);
 }

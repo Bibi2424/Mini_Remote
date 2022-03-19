@@ -84,6 +84,12 @@ extern void item_string_init(menu_item_t *menu, char* label, const char *new_str
 }
 
 
+extern void item_action_init(menu_item_t *menu, char* label, void (*do_action)(void)) {
+    item_base_init(menu, ACTION, label);
+    menu->action.do_action = do_action;
+}
+
+
 extern void item_custom_init(menu_item_t *menu, char *label, void (*draw)(Adafruit_ST7735 *, menu_item_t *), menu_item_t *(*navigate)(NAVIGATE_OPTIONS_t, menu_item_t*)) {
     item_base_init(menu, CUSTOM, label);
     menu->custom.draw_call = draw;
@@ -153,9 +159,15 @@ extern void item_string_set(menu_item_t *menu, const char *new_string) {
 }
 
 
-extern void item_uint_set_callback(menu_item_t *menu, void (*on_change)(char*)) {
+extern void item_string_set_callback(menu_item_t *menu, void (*on_change)(char*)) {
     if(menu->type != STRING) { return; }
     menu->str.on_change = on_change;
+}
+
+
+extern void item_action_set_callback(menu_item_t *menu, void (*do_action)(void)) {
+    if(menu->type != ACTION) { return; }
+    menu->action.do_action = do_action;
 }
 
 
@@ -206,7 +218,7 @@ extern bool menu_draw_gui(void) {
         }
         menu->redraw = NO_REDRAW;
     }
-    if(menu->type == STRING) {
+    else if(menu->type == STRING) {
         menu_clear_char(current_ligne, -11, 5);
         // char str_temp[11];
         // sprintf(str_temp, "%10s", menu->str.str);
@@ -250,8 +262,8 @@ extern bool menu_draw_gui(void) {
                 tft.print("->");
             }
             else if(child->type == CUSTOM && menu->redraw == FULL_REDRAW) {
-                menu_set_cursor(i+2, -1);
-                tft.print(">");
+                menu_set_cursor(i+2, -2);
+                tft.print("->");
             }
             else if(child->type == UINT && (child->redraw != NO_REDRAW || menu->redraw == FULL_REDRAW)) {
                 child->redraw = NO_REDRAW;
@@ -266,6 +278,10 @@ extern bool menu_draw_gui(void) {
                 menu_clear_char(i+2, -11, 10);
                 menu_set_cursor(i+2, -11);
                 tft.print(child->str.str);
+            }
+            else if(child->type == ACTION && menu->redraw == FULL_REDRAW) {
+                menu_set_cursor(i+2, -1);
+                tft.print("#");
             }
         }
         menu->redraw = NO_REDRAW;
@@ -382,6 +398,12 @@ extern void menu_navigate(NAVIGATE_OPTIONS_t action) {
                     edition_column = 10 - 1;
                     current_menu = submenu;
                     current_menu->redraw = FULL_REDRAW;
+                }
+                else if(submenu->type == ACTION) {
+                    Serial.println("ACTION");
+                    if(submenu->action.do_action != NULL) {
+                        submenu->action.do_action();
+                    }
                 }
                 else if(submenu->type == CUSTOM) {
                     current_menu = submenu;

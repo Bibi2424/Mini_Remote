@@ -1,4 +1,4 @@
-#include  <EEPROM.h>
+#include <EEPROM.h>
 
 #include "storage.h"
 
@@ -24,6 +24,14 @@ extern void storage_init(user_storage_t *user) {
     }
 }
 
+
 extern void storage_sync(user_storage_t *user) {
     EEPROM.put(2, *user);
+}
+
+
+extern void storage_reset(void) {
+    for (uint16_t i = 0 ; i < 2 + sizeof(user_storage_t) ; i++) {
+        EEPROM.write(i, 0);
+    }
 }

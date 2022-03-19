@@ -5,13 +5,17 @@
 #include "storage.h"
 #include "menu.h"
 
-#define MENU_PROMO_IMAGE    0
-#define RADIO_RX_ID         1
-#define RADIO_TX_ID         2
-#define MENU_EMPTY_LINE     3
-#define MENU_PROMO_STATS    4
-#define MENU_PROMO_STATS_V    5
-#define MENU_PROMO_STATS_T    6
+enum {
+	MENU_PROMO_IMAGE,
+	MENU_REMOTE_ON,
+	RADIO_RX_ID,
+	RADIO_TX_ID,
+	MENU_EMPTY_LINE,
+	MENU_PROMO_STATS,
+	MENU_PROMO_STATS_V,
+	MENU_PROMO_STATS_T,
+	MENU_NVM_RESET,
+};
 
 //! FIXME: This is not clean
 extern menu_item_t menus[];
