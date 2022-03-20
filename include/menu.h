@@ -42,6 +42,7 @@ typedef enum {
     UINT,
     LABEL,
     STRING,
+    CHECKBOX,
     ACTION,
     CUSTOM
 } MENU_TYPE_t;
@@ -72,6 +73,12 @@ typedef struct menu_string_t {
 } menu_string_t;
 
 
+typedef struct menu_checkbox_t {
+    bool value;
+    void (*on_change)(bool);
+} menu_checkbox_t;
+
+
 typedef struct menu_action_t {
     void (*do_action)(void);
 } menu_action_t;
@@ -92,6 +99,7 @@ typedef struct menu_item_t {
         menu_submenu_t submenu;
         menu_uint_t uint;
         menu_string_t str;
+        menu_checkbox_t checkbox;
         menu_action_t action;
         menu_custom_t custom;
     };
@@ -104,6 +112,7 @@ extern void menu_init(void);
 extern void item_label_init(menu_item_t *menu, char *label);
 extern void item_uint_init(menu_item_t *menu, char *label, uint16_t value, void (*on_change)(uint16_t));
 extern void item_string_init(menu_item_t *menu, char *label, const char *new_string, void (*on_change)(char *));
+extern void item_checkbox_init(menu_item_t *menu, char* label, bool value, void (*on_change)(bool));
 extern void item_action_init(menu_item_t *menu, char* label, void (*do_action)(void));
 extern void item_custom_init(menu_item_t *menu, char *label, void (*draw)(Adafruit_ST7735 *, menu_item_t *), menu_item_t *(*navigate)(NAVIGATE_OPTIONS_t, menu_item_t*));
 extern void item_submenu_init(menu_item_t *menu, char *label);
@@ -116,6 +125,9 @@ extern void item_uint_set_callback(menu_item_t *menu, void (*on_change)(uint16_t
 extern uint8_t item_string_get(menu_item_t *menu, char *new_string);
 extern void item_string_set(menu_item_t *menu, const char *new_string);
 extern void item_string_set_callback(menu_item_t *menu, void (*on_change)(char *));
+extern bool item_checkbox_get_value(menu_item_t *menu);
+extern void item_checkbox_set_value(menu_item_t *menu, const bool value);
+extern void item_checkbox_set_callback(menu_item_t *menu, void (*on_change)(bool));
 extern void item_action_set_callback(menu_item_t *menu, void (*do_action)(void));
 
 extern void menu_set(menu_item_t *menu);

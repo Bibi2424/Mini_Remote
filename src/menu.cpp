@@ -21,6 +21,7 @@ static uint8_t vleds[VLED_NUMBER] = {0, 0};
 static inline void menu_vled_redraw(uint8_t led_id);
 static inline void menu_vled_redraw_all(void);
 
+//! TODO: add menu_to_screen_pos function
 static void menu_set_cursor(int8_t line, int8_t column) {
     if (line < 0) { line = MENU_LINE + line; }
     if (column < 0) { column = MENU_COLUMN + column; }
@@ -39,6 +40,24 @@ static void menu_draw_rect(uint8_t line, uint16_t rect_color) {
 }
 
 
+static void menu_draw_checkbox(int8_t line, int8_t column, bool ticked) {
+    if (line < 0) { line = MENU_LINE + line; }
+    if (column < 0) { column = MENU_COLUMN + column; }
+    if(ticked) {
+        menu_set_cursor(line, column);
+        tft.print("x");
+    }
+    tft.drawRect((uint8_t)column * 6 + 1, (uint8_t)line * 12 + 3, 9, 9, WHITE);
+}
+
+
+static void menu_draw_action_icon(int8_t line, int8_t column) {
+    if (line < 0) { line = MENU_LINE + line; }
+    if (column < 0) { column = MENU_COLUMN + column; }
+    tft.drawCircle((uint8_t)column * 6 + 3 + 2, (uint8_t)line * 12 + 3 + 2, 4, WHITE);
+}
+
+
 static void item_base_init(menu_item_t *menu, MENU_TYPE_t type, char* label) {
     memset(menu, 0, sizeof(menu_item_t));
     menu->redraw = NO_REDRAW;
@@ -47,7 +66,7 @@ static void item_base_init(menu_item_t *menu, MENU_TYPE_t type, char* label) {
     menu->label[15] = '\0';
 }
 
-//! -- INIT Functions -------------------------
+
 extern void menu_init(void) {
     //! Size XxY: 160x128
     tft.initR(INITR_GREENTAB); // Init ST7735S chip, green tab
@@ -81,6 +100,13 @@ extern void item_string_init(menu_item_t *menu, char* label, const char *new_str
     str_temp[11] = '\0';
     sprintf(menu->str.str, "%10s", str_temp);
     menu->str.on_change = on_change;
+}
+
+
+extern void item_checkbox_init(menu_item_t *menu, char* label, bool value, void (*on_change)(bool)) {
+    item_base_init(menu, CHECKBOX, label);
+    menu->checkbox.value = value;
+    menu->checkbox.on_change = on_change;
 }
 
 
@@ -162,6 +188,26 @@ extern void item_string_set(menu_item_t *menu, const char *new_string) {
 extern void item_string_set_callback(menu_item_t *menu, void (*on_change)(char*)) {
     if(menu->type != STRING) { return; }
     menu->str.on_change = on_change;
+}
+
+
+extern bool item_checkbox_get_value(menu_item_t *menu) {
+    if(menu->type != CHECKBOX) { return false; }
+    return menu->uint.value;
+}
+
+
+extern void item_checkbox_set_value(menu_item_t *menu, const bool value) {
+    if(menu->type != CHECKBOX) { return; }
+    menu->checkbox.value = value;
+    menu->redraw = FULL_REDRAW;
+    if(menu->parent != NULL) { menu->parent->redraw = PARTIAL_REDRAW; }
+}
+
+
+extern void item_checkbox_set_callback(menu_item_t *menu, void (*on_change)(bool)) {
+    if(menu->type != CHECKBOX) { return; }
+    menu->checkbox.on_change = on_change;
 }
 
 
@@ -279,9 +325,19 @@ extern bool menu_draw_gui(void) {
                 menu_set_cursor(i+2, -11);
                 tft.print(child->str.str);
             }
+            else if(child->type == CHECKBOX && (child->redraw != NO_REDRAW || menu->redraw == FULL_REDRAW)) {
+                child->redraw = NO_REDRAW;
+                menu_clear_char(i+2, -2, 2);
+                // menu_set_cursor(i+2, -2);
+                menu_draw_checkbox(i+2, -2, child->checkbox.value);
+                // if(child->checkbox.value) { tft.print("x"); }
+                // else { tft.print("."); }
+            }
             else if(child->type == ACTION && menu->redraw == FULL_REDRAW) {
-                menu_set_cursor(i+2, -1);
-                tft.print("#");
+                // menu_set_cursor(i+2, -2);
+                // tft.print("#");
+                menu_clear_char(i+2, -2, 2);
+                menu_draw_action_icon(i+2, -2);
             }
         }
         menu->redraw = NO_REDRAW;
@@ -399,11 +455,19 @@ extern void menu_navigate(NAVIGATE_OPTIONS_t action) {
                     current_menu = submenu;
                     current_menu->redraw = FULL_REDRAW;
                 }
+                else if(submenu->type == CHECKBOX) {
+                    submenu->checkbox.value ^= 1;
+                    current_menu->redraw = FULL_REDRAW;
+                    if(submenu->checkbox.on_change != NULL) {
+                        submenu->checkbox.on_change(submenu->checkbox.value);
+                    }
+                }
                 else if(submenu->type == ACTION) {
-                    Serial.println("ACTION");
                     if(submenu->action.do_action != NULL) {
                         submenu->action.do_action();
                     }
+                    //! Redraw is not necessary, use it for user feedback (screen flicker)
+                    current_menu->redraw = FULL_REDRAW;
                 }
                 else if(submenu->type == CUSTOM) {
                     current_menu = submenu;

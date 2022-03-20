@@ -19,7 +19,7 @@ extern void remote_gui_init(user_storage_t *user) {
     item_custom_init(&menus[MENU_PROMO_IMAGE], (char *)"PRoMo image", &menu_promo_image_draw, &menu_promo_image_navigate);
     item_submenu_add_child(&root_menu, &menus[MENU_PROMO_IMAGE]);
 
-    item_uint_init(&menus[MENU_REMOTE_ON], (char *)"Remote enable", user->radio_enable, NULL);
+    item_checkbox_init(&menus[MENU_REMOTE_ON], (char *)"Remote enable", user->radio_enable, NULL);
     item_submenu_add_child(&root_menu, &menus[MENU_REMOTE_ON]);
 
     item_uint_init(&menus[RADIO_RX_ID], (char *)"radio RX ID", user->radio_rx_id, NULL);
@@ -40,7 +40,8 @@ extern void remote_gui_init(user_storage_t *user) {
     item_uint_init(&menus[MENU_PROMO_STATS_T], (char *)"t:", 0, NULL);
     item_submenu_add_child(&menus[MENU_PROMO_STATS], &menus[MENU_PROMO_STATS_T]);
 
-    item_action_init(&menus[MENU_NVM_RESET], (char *)"NVM reset", &storage_reset);
+    //! For the moment, no associated ram are updated by that change
+    item_action_init(&menus[MENU_NVM_RESET], (char *)"NVM reset (WIP)", &storage_reset);
     item_submenu_add_child(&root_menu, &menus[MENU_NVM_RESET]);
 
     menu_set(&menus[MENU_PROMO_IMAGE]);

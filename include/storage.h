@@ -8,7 +8,7 @@
 typedef struct {
     uint8_t radio_rx_id;
     uint8_t radio_tx_id;
-    uint8_t radio_enable;
+    bool radio_enable;
 } user_storage_t;
 
 

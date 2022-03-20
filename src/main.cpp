@@ -26,7 +26,7 @@ static void enter_button(void);
 static void nrf_interrupt(void);
 static void nrf_new_radio_rx_id(uint16_t rx_id);
 static void nrf_new_radio_tx_id(uint16_t tx_id);
-static void sync_remote_enable(uint16_t enable);
+static void sync_remote_enable(bool enable);
 
 
 const static uint8_t PIN_RADIO_CE = 9;
@@ -100,7 +100,7 @@ void setup() {
 	remote_gui_init(&storage);
 	item_uint_set_callback(&menus[RADIO_RX_ID], nrf_new_radio_rx_id);
 	item_uint_set_callback(&menus[RADIO_TX_ID], nrf_new_radio_tx_id);
-	item_uint_set_callback(&menus[MENU_REMOTE_ON], sync_remote_enable);
+	item_checkbox_set_callback(&menus[MENU_REMOTE_ON], sync_remote_enable);
 
 	// menu_vled_set(0, TRUE);
 
@@ -112,7 +112,7 @@ uint32_t last_rx_packet;
 void loop() {
 	uint32_t now = millis();
 
-	if (now - _lastSendTime > 20 && storage.radio_enable) {
+	if (now - _lastSendTime > 50 && storage.radio_enable) {
 		read_joystick(&left_joystick);
 		read_joystick(&right_joystick);
 
@@ -237,7 +237,7 @@ static void nrf_new_radio_tx_id(uint16_t tx_id) {
 }
 
 
-static void sync_remote_enable(uint16_t enable) {
+static void sync_remote_enable(bool enable) {
 	storage.radio_enable = enable;
 	if(enable == false) { menu_vled_set(VLED_NRF_TX, false); }
 	Serial.print("Remote enable: "); Serial.println(enable);
