@@ -1,6 +1,7 @@
 #include "remote_gui.h"
-#include "promo_outline.h"
 #include "storage.h"
+
+#include "promo_outline.h"
 
 
 static void menu_promo_image_draw(Adafruit_ST7735 *screen, menu_item_t *menu);
@@ -44,7 +45,6 @@ extern void remote_gui_init(user_storage_t *user) {
     item_action_init(&menus[MENU_NVM_RESET], (char *)"NVM reset (WIP)", &storage_reset);
     item_submenu_add_child(&root_menu, &menus[MENU_NVM_RESET]);
 
-    menu_set(&menus[MENU_PROMO_IMAGE]);
     menu_set(&root_menu);
     menu_draw_gui();
 
@@ -67,7 +67,6 @@ extern void remote_gui_init(user_storage_t *user) {
     // item_label_init(&menus[7], (char *)"menu_108");
     // item_submenu_add_child(&root_menu, &menus[7]);
 }
-
 
 
 static void menu_promo_image_draw(Adafruit_ST7735 *screen, menu_item_t *menu) {

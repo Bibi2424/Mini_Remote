@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
 #include <SPI.h>
-#include <NRFLite.h>
+#include <RF24.h>
 #include "global.h"
 #include "joystick.h"
 #include "menu.h"
@@ -11,19 +11,14 @@
 
 #define BUTTON_DEBOUNCE_MS 200
 
-#define RADIO_STATUS_TX_OK		0
-#define RADIO_STATUS_TX_FAIL	1
-#define RADIO_STATUS_RX_READY	2
-
 
 typedef struct {
-    int8_t vertical;
-    int8_t horizontal;
+	int8_t vertical;
+	int8_t horizontal;
 } RadioPacketJoystick_t;
 
 
 static void enter_button(void);
-static void nrf_interrupt(void);
 static void nrf_new_radio_rx_id(uint16_t rx_id);
 static void nrf_new_radio_tx_id(uint16_t tx_id);
 static void sync_remote_enable(bool enable);
@@ -46,7 +41,8 @@ static joystick_t right_joystick = {
 	.dead_space = 10
 };
 
-static NRFLite _radio;
+static RF24 radio(PIN_RADIO_CE, PIN_RADIO_CSN);
+uint8_t address[6] = {"PROM0"};
 static RadioPacketJoystick_t _radioJoystick;
 
 volatile static uint16_t time_pressed = 0;
@@ -78,10 +74,9 @@ void setup() {
 	PCMSK1 |= _BV(PCINT11);
 	pinMode(2, INPUT_PULLUP);
 	attachInterrupt(digitalPinToInterrupt(2), enter_button, FALLING);
-	attachInterrupt(digitalPinToInterrupt(PIN_RADIO_IRQ), nrf_interrupt, FALLING);
+	// attachInterrupt(digitalPinToInterrupt(PIN_RADIO_IRQ), nrf_interrupt, FALLING);
 
-	// put your setup code here, to run once:
-	Serial.begin(115200);
+	Serial.begin(230400);
 
 	storage_init(&storage);
 	Serial.print("STORED: RX:");
@@ -89,20 +84,28 @@ void setup() {
 	Serial.print(" / TX:");
 	Serial.println(storage.radio_tx_id);
 
-	if (!_radio.init(storage.radio_rx_id, PIN_RADIO_CE, PIN_RADIO_CSN)) {
-        Serial.println("Cannot communicate with radio");
-        while (1); // Wait here forever.
+	// initialize the transceiver on the SPI bus
+	if (!radio.begin()) {
+		Serial.println(F("radio hardware is not responding!!"));
+		while (1);
 	}
 	else {
 		Serial.println("Init Radio OK");
 	}
+	radio.setPALevel(RF24_PA_HIGH);     	// RF24_PA_MAX is default.
+	radio.enableDynamicPayloads();
+  	radio.setPayloadSize(sizeof(RadioPacketJoystick_t));
+	// radio.enableAckPayload();
+	address[4] = storage.radio_tx_id;
+	radio.openWritingPipe(address);     	// always uses pipe 0 for tx
+	address[4] = storage.radio_rx_id;
+	radio.openReadingPipe(1, address);		// using pipe 1 for rx
+	radio.stopListening();                  // put radio in TX mode
 
 	remote_gui_init(&storage);
 	item_uint_set_callback(&menus[RADIO_RX_ID], nrf_new_radio_rx_id);
 	item_uint_set_callback(&menus[RADIO_TX_ID], nrf_new_radio_tx_id);
 	item_checkbox_set_callback(&menus[MENU_REMOTE_ON], sync_remote_enable);
-
-	// menu_vled_set(0, TRUE);
 
 	sei();
 }
@@ -129,29 +132,34 @@ void loop() {
 		// Serial.print(", to:"); Serial.print(storage.radio_tx_id);
 
 		_lastSendTime = millis();
-		is_sending = true;
-		_radio.startSend(storage.radio_tx_id, &_radioJoystick, sizeof(_radioJoystick));
-	}
 
-	if(bitRead(last_radio_status, RADIO_STATUS_TX_OK)) {
-		bitClear(last_radio_status, RADIO_STATUS_TX_OK);
-		menu_vled_set(VLED_NRF_TX, true);
-		Serial.print("#");
-	}
-	if(bitRead(last_radio_status, RADIO_STATUS_TX_FAIL)) {
-		bitClear(last_radio_status, RADIO_STATUS_TX_FAIL);
-		menu_vled_set(VLED_NRF_TX, false);
-		Serial.print("!");
-	}
-	if(bitRead(last_radio_status, RADIO_STATUS_RX_READY)) {
-		bitClear(last_radio_status, RADIO_STATUS_RX_READY);
-		last_rx_packet = millis();
-		menu_vled_set(VLED_NRF_RX, true);
-		Serial.print("Received: ");
-		while (_radio.hasDataISR()) {
-			uint8_t data;
-			_radio.readData(&data);
-			Serial.println(data);
+		is_sending = true;
+		bool report = radio.write(&_radioJoystick, sizeof(_radioJoystick));    // transmit & save the report
+		is_sending = false;
+
+		if(!report) {
+			menu_vled_set(VLED_NRF_TX, false);
+			Serial.print("!");
+		}
+		else {
+			menu_vled_set(VLED_NRF_TX, true);
+			Serial.print("#");
+			// uint8_t pipe;
+			// if(radio.available(&pipe)) {
+			// 	uint8_t size = radio.getDynamicPayloadSize();
+			// 	uint8_t rx_buffer[32];
+			// 	radio.read(&rx_buffer, size);
+			// 	Serial.print("[RX=");
+			// 	for(uint8_t i = 0; i < size; i++) {
+			// 		Serial.print(rx_buffer[i], HEX);
+			// 		Serial.print(":");
+			// 	}
+			// 	Serial.println("]");
+	 	// 		menu_vled_set(VLED_NRF_RX, true);
+			// }
+			// else {
+	 	// 		menu_vled_set(VLED_NRF_RX, false);
+			// }
 		}
 	}
 	if((now - last_rx_packet) > 500) {
@@ -207,17 +215,6 @@ static void enter_button(void) {
 	next_action = NAVIGATE_ENTER;
 	time_pressed = millis();
 	need_redraw = true;
-}
-
-
-static void nrf_interrupt(void) {
-	// Serial.println("NRF Interrupt");
-	uint8_t txOk, txFail, rxReady;
-	_radio.whatHappened(txOk, txFail, rxReady);
-	if (txOk) { bitSet(last_radio_status, RADIO_STATUS_TX_OK); }
-	if (txFail) { bitSet(last_radio_status, RADIO_STATUS_TX_FAIL); }
-	if (rxReady) { bitSet(last_radio_status, RADIO_STATUS_RX_READY); }
-	is_sending = false;
 }
 
 
