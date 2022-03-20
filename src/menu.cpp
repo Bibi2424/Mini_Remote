@@ -60,6 +60,7 @@ static void menu_draw_action_icon(int8_t line, int8_t column) {
 
 static void item_base_init(menu_item_t *menu, MENU_TYPE_t type, char* label) {
     memset(menu, 0, sizeof(menu_item_t));
+    menu->parent = NULL;
     menu->redraw = NO_REDRAW;
     menu->type = type;
     strncpy(menu->label, label, 15);
@@ -287,57 +288,62 @@ extern bool menu_draw_gui(void) {
             menu_clear_char(1, 0, 1);
             menu_set_cursor(1, 2); 
         }
-        tft.print("...");
+
+        uint8_t offset = 1;
+        if(menu->parent != NULL) {
+            tft.print("...");
+            offset += 1;
+        }
 
         menu_item_t *child;
-        for(uint8_t i = 0; i < menu->submenu.number_of_children; i++) {
-            child = menu->submenu.children[i];
+        for(uint8_t i = offset; i < menu->submenu.number_of_children + offset; i++) {
+            child = menu->submenu.children[i-offset];
             
-            if(menu->submenu.selected == i + 1) {
-                menu_set_cursor(i + 2, 0);
+            if(menu->submenu.selected == i - 1) {
+                menu_set_cursor(i, 0);
                 tft.print("> "); 
             }
             else { 
-                menu_clear_char(i + 2 , 0, 1);
-                menu_set_cursor(i + 2, 2); 
+                menu_clear_char(i , 0, 1);
+                menu_set_cursor(i, 2);
             }
             if (menu->redraw == FULL_REDRAW) { tft.print(child->label); }
 
             if(child->type == SUBMENU && menu->redraw == FULL_REDRAW) {
-                menu_set_cursor(i+2, -2);
+                menu_set_cursor(i, -2);
                 tft.print("->");
             }
             else if(child->type == CUSTOM && menu->redraw == FULL_REDRAW) {
-                menu_set_cursor(i+2, -2);
+                menu_set_cursor(i, -2);
                 tft.print("->");
             }
             else if(child->type == UINT && (child->redraw != NO_REDRAW || menu->redraw == FULL_REDRAW)) {
                 child->redraw = NO_REDRAW;
-                menu_clear_char(i+2, -11, 10);
-                menu_set_cursor(i+2, -11);
+                menu_clear_char(i, -11, 10);
+                menu_set_cursor(i, -11);
                 char str_temp[11];
                 sprintf(str_temp, "%10u", child->uint.value);
                 tft.print(str_temp);
             }
             else if(child->type == STRING && (child->redraw != NO_REDRAW || menu->redraw == FULL_REDRAW)) {
                 child->redraw = NO_REDRAW;
-                menu_clear_char(i+2, -11, 10);
-                menu_set_cursor(i+2, -11);
+                menu_clear_char(i, -11, 10);
+                menu_set_cursor(i, -11);
                 tft.print(child->str.str);
             }
             else if(child->type == CHECKBOX && (child->redraw != NO_REDRAW || menu->redraw == FULL_REDRAW)) {
                 child->redraw = NO_REDRAW;
-                menu_clear_char(i+2, -2, 2);
-                // menu_set_cursor(i+2, -2);
-                menu_draw_checkbox(i+2, -2, child->checkbox.value);
+                menu_clear_char(i, -2, 2);
+                // menu_set_cursor(i, -2);
+                menu_draw_checkbox(i, -2, child->checkbox.value);
                 // if(child->checkbox.value) { tft.print("x"); }
                 // else { tft.print("."); }
             }
             else if(child->type == ACTION && menu->redraw == FULL_REDRAW) {
-                // menu_set_cursor(i+2, -2);
+                // menu_set_cursor(i, -2);
                 // tft.print("#");
-                menu_clear_char(i+2, -2, 2);
-                menu_draw_action_icon(i+2, -2);
+                menu_clear_char(i, -2, 2);
+                menu_draw_action_icon(i, -2);
             }
         }
         menu->redraw = NO_REDRAW;
@@ -437,6 +443,9 @@ extern void menu_navigate(NAVIGATE_OPTIONS_t action) {
                 break;
             case NAVIGATE_RIGHT:
             case NAVIGATE_ENTER: {
+                uint8_t offset = 0;
+                if(current_menu->parent != NULL) { offset = 1; }
+
                 if(current_menu->submenu.selected == 0) {
                     if(current_menu->parent != NULL) {
                         current_menu = current_menu->parent;
@@ -444,13 +453,13 @@ extern void menu_navigate(NAVIGATE_OPTIONS_t action) {
                         break;
                     }
                 }
-                menu_item_t* submenu = current_menu->submenu.children[current_menu->submenu.selected - 1];
+                menu_item_t* submenu = current_menu->submenu.children[current_menu->submenu.selected - offset];
                 if(submenu->type == SUBMENU) {
                     current_menu = submenu;
                     current_menu->redraw = FULL_REDRAW;
                 }
                 else if(submenu->type == UINT || submenu->type == STRING) {
-                    current_ligne = current_menu->submenu.selected + 1;
+                    current_ligne = current_menu->submenu.selected + offset;
                     edition_column = 10 - 1;
                     current_menu = submenu;
                     current_menu->redraw = FULL_REDRAW;
