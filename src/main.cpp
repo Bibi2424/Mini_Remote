@@ -7,6 +7,7 @@
 #include "menu.h"
 #include "remote_gui.h"
 #include "storage.h"
+#include "promo_viz_menu.h"
 
 
 #define BUTTON_DEBOUNCE_MS 200
@@ -94,8 +95,7 @@ void setup() {
 	}
 	radio.setPALevel(RF24_PA_HIGH);     	// RF24_PA_MAX is default.
 	radio.enableDynamicPayloads();
-  	radio.setPayloadSize(sizeof(RadioPacketJoystick_t));
-	// radio.enableAckPayload();
+	radio.enableAckPayload();
 	address[4] = storage.radio_tx_id;
 	radio.openWritingPipe(address);     	// always uses pipe 0 for tx
 	address[4] = storage.radio_rx_id;
@@ -144,25 +144,21 @@ void loop() {
 		else {
 			menu_vled_set(VLED_NRF_TX, true);
 			Serial.print("#");
-			// uint8_t pipe;
-			// if(radio.available(&pipe)) {
-			// 	uint8_t size = radio.getDynamicPayloadSize();
-			// 	uint8_t rx_buffer[32];
-			// 	radio.read(&rx_buffer, size);
-			// 	Serial.print("[RX=");
-			// 	for(uint8_t i = 0; i < size; i++) {
-			// 		Serial.print(rx_buffer[i], HEX);
-			// 		Serial.print(":");
-			// 	}
-			// 	Serial.println("]");
-	 	// 		menu_vled_set(VLED_NRF_RX, true);
-			// }
-			// else {
-	 	// 		menu_vled_set(VLED_NRF_RX, false);
-			// }
+			uint8_t pipe;
+			if(radio.available(&pipe)) {
+				last_rx_packet = now;
+				uint8_t size = radio.getDynamicPayloadSize();
+				uint16_t rx_buffer[4];
+				radio.read((uint8_t*)&rx_buffer, size);
+				//! TODO: process data coming from device
+				need_redraw = true;
+				menu_promo_set_distances(rx_buffer);
+				menu_vled_set(VLED_NRF_RX, true);
+			}
 		}
 	}
-	if((now - last_rx_packet) > 500) {
+
+	if((now - last_rx_packet) > 1000) {
 		menu_vled_set(VLED_NRF_RX, false);
 	}
 

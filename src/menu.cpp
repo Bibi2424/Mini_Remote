@@ -131,11 +131,11 @@ extern void item_submenu_init(menu_item_t *menu, char* label) {
 
 
 extern uint8_t item_submenu_add_child(menu_item_t *menu, menu_item_t *child) {
-    if(menu->type != SUBMENU) { return FALSE; }
-    if(menu->submenu.number_of_children >= MAX_CHILD) { return FALSE; }
+    if(menu->type != SUBMENU) { return false; }
+    if(menu->submenu.number_of_children >= MAX_CHILD) { return false; }
     menu->submenu.children[menu->submenu.number_of_children++] = child;
     child->parent = menu;
-    return TRUE;
+    return true;
 }
 
 //! -- Modify functions -------------------------
@@ -230,7 +230,8 @@ extern void menu_set(menu_item_t *menu) {
 }
 
 
-extern void menu_redraw(menu_item_t *menu, REDRAW_TYPE type) {
+extern void menu_min_redraw(menu_item_t *menu, REDRAW_TYPE type) {
+    if(current_menu->redraw > type) { return; }
     current_menu->redraw = type;
 }
 

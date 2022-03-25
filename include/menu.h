@@ -131,6 +131,7 @@ extern void item_checkbox_set_callback(menu_item_t *menu, void (*on_change)(bool
 extern void item_action_set_callback(menu_item_t *menu, void (*do_action)(void));
 
 extern void menu_set(menu_item_t *menu);
+extern void menu_min_redraw(menu_item_t *menu, REDRAW_TYPE redraw);
 extern void menu_draw_header(menu_item_t *menu);
 extern bool menu_draw_gui(void);
 extern void menu_navigate(NAVIGATE_OPTIONS_t action);

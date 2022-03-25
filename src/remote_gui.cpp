@@ -1,11 +1,8 @@
 #include "remote_gui.h"
 #include "storage.h"
+#include "promo_viz_menu.h"
 
-#include "promo_outline.h"
 
-
-static void menu_promo_image_draw(Adafruit_ST7735 *screen, menu_item_t *menu);
-static menu_item_t* menu_promo_image_navigate(NAVIGATE_OPTIONS_t action, menu_item_t *menu);
 
 menu_item_t root_menu;
 menu_item_t menus[20];
@@ -66,70 +63,4 @@ extern void remote_gui_init(user_storage_t *user) {
     // item_submenu_add_child(&root_menu, &menus[6]);
     // item_label_init(&menus[7], (char *)"menu_108");
     // item_submenu_add_child(&root_menu, &menus[7]);
-}
-
-
-static void menu_promo_image_draw(Adafruit_ST7735 *screen, menu_item_t *menu) {
-
-    uint16_t time = millis();
-
-    if(menu->redraw == FULL_REDRAW) {
-        draw_image_centered(90, 70, promo_outline_array, PROMO_OUTLINE_WIDTH, PROMO_OUTLINE_HEIGHT);
-    }
-
-    screen->setCursor(40, 35);
-    screen->setTextColor(BLACK, BLACK);
-    screen->print("   ");
-    screen->setTextColor(WHITE, BLACK);
-    screen->setCursor(40, 35);
-    screen->print("00");
-
-    screen->setCursor(40, 95);
-    screen->setTextColor(BLACK, BLACK);
-    screen->print("   ");
-    screen->setTextColor(WHITE, BLACK);
-    screen->setCursor(40, 95);
-    screen->print("00");
-
-    screen->setCursor(40, 65);
-    screen->setTextColor(BLACK, BLACK);
-    screen->print("   ");
-    screen->setTextColor(WHITE, BLACK);
-    screen->setCursor(30, 65);
-    screen->print("00");
-
-    screen->setCursor(140, 65);
-    screen->setTextColor(BLACK, BLACK);
-    screen->print("   ");
-    screen->setTextColor(WHITE, BLACK);
-    screen->setCursor(140, 65);
-    screen->print("00");
-
-    time = millis() - time;
-    tft.setCursor(3, 15);
-    tft.print(time);
-    tft.print("ms");
-}
-
-
-static menu_item_t* menu_promo_image_navigate(NAVIGATE_OPTIONS_t action, menu_item_t *menu) {
-    switch(action) {
-        case NAVIGATE_UP:
-            // break;
-        case NAVIGATE_DOWN:
-            // break;
-        case NAVIGATE_LEFT:
-            // break;
-        case NAVIGATE_RIGHT:
-            break;
-        case NAVIGATE_ENTER:
-            if(menu->parent != NULL) {
-                menu = menu->parent;
-                menu->redraw = FULL_REDRAW;
-            }
-            break;
-        default:
-            break;
-    }
-    return menu;
 }
