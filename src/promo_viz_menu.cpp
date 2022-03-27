@@ -4,19 +4,13 @@
 #include "promo_outline.h"
 
 
+
 static uint16_t sensors_distance[4] = {0};
 
-
-static void clamp_sensor_distance(uint16_t *distances) {
-	for(uint8_t i = 0; i < 4; i++) {
-		if(distances[i] >= 1000) { distances[i] = 999U; }
-	}
-}
 
 
 extern void menu_promo_set_distances(uint16_t* distances) {
 	memcpy(sensors_distance, distances, 4*sizeof(uint16_t));
-	clamp_sensor_distance(sensors_distance);
 	Serial.print("L:"); Serial.print(sensors_distance[1]); Serial.print(", ");
 	Serial.print("F:"); Serial.print(sensors_distance[0]); Serial.print(", ");
 	Serial.print("D:"); Serial.print(sensors_distance[2]); Serial.print(", ");
@@ -33,37 +27,53 @@ extern void menu_promo_image_draw(Adafruit_ST7735 *screen, menu_item_t *menu) {
         draw_image_centered(90, 70, promo_outline_array, PROMO_OUTLINE_WIDTH, PROMO_OUTLINE_HEIGHT);
     }
 
-    // RIGHT
+    //! RIGHT
     screen->setCursor(35, 35);
-    screen->setTextColor(BLACK, BLACK);
     screen->print("   ");
     screen->setTextColor(WHITE, BLACK);
     screen->setCursor(35, 35);
-    screen->print(sensors_distance[2]);
+    if(sensors_distance[2] > 999) {
+    	screen->print("INF");
+    }
+    else {
+    	screen->print(sensors_distance[2]);
+    }
 
-    // FRONT
+    //! FRONT
     screen->setCursor(25, 65);
-    screen->setTextColor(BLACK, BLACK);
     screen->print("   ");
     screen->setTextColor(WHITE, BLACK);
     screen->setCursor(25, 65);
-    screen->print(sensors_distance[0]);
+    if(sensors_distance[0] > 999) {
+    	screen->print("INF");
+    }
+    else {
+    	screen->print(sensors_distance[0]);
+    }
 
-    // LEFT
+    //! LEFT
     screen->setCursor(35, 95);
-    screen->setTextColor(BLACK, BLACK);
     screen->print("   ");
     screen->setTextColor(WHITE, BLACK);
     screen->setCursor(35, 95);
-    screen->print(sensors_distance[1]);
+    if(sensors_distance[1] > 999) {
+    	screen->print("INF");
+    }
+    else {
+    	screen->print(sensors_distance[1]);
+    }
 
-    // BACK
+    //! BACK
     screen->setCursor(140, 65);
-    screen->setTextColor(BLACK, BLACK);
     screen->print("   ");
     screen->setTextColor(WHITE, BLACK);
     screen->setCursor(140, 65);
-    screen->print(sensors_distance[3]);
+    if(sensors_distance[3] > 999) {
+    	screen->print("INF");
+    }
+    else {
+    	screen->print(sensors_distance[3]);
+    }
 
     time = millis() - time;
     tft.setCursor(3, 15);

@@ -10,7 +10,7 @@
 #include "promo_viz_menu.h"
 
 
-#define BUTTON_DEBOUNCE_MS 200
+#define BUTTON_DEBOUNCE_MS 500
 
 
 typedef struct {
