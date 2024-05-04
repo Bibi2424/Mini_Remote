@@ -20,65 +20,62 @@ extern void menu_promo_set_distances(uint16_t* distances) {
 
 
 extern void menu_promo_image_draw(Adafruit_ST7735 *screen, menu_item_t *menu) {
-
-    uint16_t time = millis();
+    char buffer[6];
+    uint16_t start_time = millis();
 
     if(menu->redraw == FULL_REDRAW) {
         draw_image_centered(90, 70, promo_outline_array, PROMO_OUTLINE_WIDTH, PROMO_OUTLINE_HEIGHT);
     }
 
-    //! RIGHT
-    screen->setCursor(35, 35);
-    screen->print("   ");
     screen->setTextColor(WHITE, BLACK);
-    screen->setCursor(35, 35);
+
+    //! RIGHT
     if(sensors_distance[2] > 999) {
-    	screen->print("INF");
+    	snprintf(buffer, 4, "%3s", "INF");
     }
     else {
-    	screen->print(sensors_distance[2]);
+        snprintf(buffer, 4, "%3u", sensors_distance[2]);
     }
+    screen->setCursor(35, 35);
+    screen->print(buffer);
 
     //! FRONT
-    screen->setCursor(25, 65);
-    screen->print("   ");
-    screen->setTextColor(WHITE, BLACK);
-    screen->setCursor(25, 65);
     if(sensors_distance[0] > 999) {
-    	screen->print("INF");
+        snprintf(buffer, 4, "%3s", "INF");
     }
     else {
-    	screen->print(sensors_distance[0]);
+        snprintf(buffer, 4, "%3u", sensors_distance[0]);
     }
+    screen->setCursor(25, 65);
+    screen->print(buffer);
 
     //! LEFT
-    screen->setCursor(35, 95);
-    screen->print("   ");
-    screen->setTextColor(WHITE, BLACK);
-    screen->setCursor(35, 95);
     if(sensors_distance[1] > 999) {
-    	screen->print("INF");
+        snprintf(buffer, 4, "%3s", "INF");
     }
     else {
-    	screen->print(sensors_distance[1]);
+        snprintf(buffer, 4, "%3u", sensors_distance[1]);
     }
+    screen->setCursor(35, 95);
+    screen->print(buffer);
 
     //! BACK
-    screen->setCursor(140, 65);
-    screen->print("   ");
-    screen->setTextColor(WHITE, BLACK);
-    screen->setCursor(140, 65);
     if(sensors_distance[3] > 999) {
-    	screen->print("INF");
+        snprintf(buffer, 4, "%3s", "INF");
     }
     else {
-    	screen->print(sensors_distance[3]);
+        snprintf(buffer, 4, "%3u", sensors_distance[3]);
     }
+    screen->setCursor(140, 65);
+    screen->print(buffer);
 
-    time = millis() - time;
-    tft.setCursor(3, 15);
-    tft.print(time);
-    tft.print("ms");
+    uint16_t draw_time = millis() - start_time;
+    screen->setCursor(3, 15);
+    if(draw_time > 999) { screen->print("999+ms"); }
+    else { 
+        snprintf(buffer, 6, "%ums", draw_time);
+        screen->print(buffer);
+    }
 }
 
 

@@ -161,6 +161,9 @@ void loop() {
 	if((now - last_rx_packet) > 1000) {
 		menu_vled_set(VLED_NRF_RX, false);
 	}
+	else {
+		menu_vled_set(VLED_NRF_RX, true);
+	}
 
 	if(next_action != NAVIGATE_NONE) {
 		menu_navigate(next_action);
@@ -185,21 +188,21 @@ ISR(PCINT1_vect) {
 	if(digitalRead(A0) == LOW) {
 		next_action = NAVIGATE_LEFT;
 		time_pressed = millis();
-		need_redraw = true;
 	}
 	else if(digitalRead(A1) == LOW) {
 		next_action = NAVIGATE_RIGHT;
 		time_pressed = millis();
-		need_redraw = true;
 	}
 	if(digitalRead(A2) == LOW) {
 		next_action = NAVIGATE_DOWN;
 		time_pressed = millis();
-		need_redraw = true;
 	}
 	else if(digitalRead(A3) == LOW) {
 		next_action = NAVIGATE_UP;
 		time_pressed = millis();
+	}
+
+	if(next_action != NAVIGATE_NONE) {
 		need_redraw = true;
 	}
 }
